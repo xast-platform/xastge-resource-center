@@ -21,3 +21,5 @@ update msg model =
 
             Internal url ->
                ( model, Nav.pushUrl model.key (Url.toString url) )     
+      
+      _ -> (model, Cmd.none)
