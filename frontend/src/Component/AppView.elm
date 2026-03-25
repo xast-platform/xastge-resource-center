@@ -37,7 +37,7 @@ view model =
 
       Dashboard dashboard ->
          case model.accountStatus of
-            LoggedOut -> DashboardView.invalidView
+            LoggedOut -> DashboardView.invalidView "You must be logged in to view the dashboard."
             LoggedIn userData -> DashboardView.view dashboard userData
 
       _ -> text "ERROR"

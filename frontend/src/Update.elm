@@ -204,6 +204,15 @@ update msg model =
             ]
          )
 
+      -- DASHBOARD
+      SelectDashboardTab tab ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               ( { model | page = PageModel.Dashboard { dbm | tab = tab } }, Cmd.none )
+            _ ->
+               ( model, Cmd.none )
+
+
       _ -> (model, Cmd.none)
 
 
