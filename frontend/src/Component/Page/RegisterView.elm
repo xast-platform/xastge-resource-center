@@ -11,6 +11,7 @@ view : RegisterModel -> Html Msg
 view model = 
    Form.formFluid
       [ Form.heading "Register"
+      , Form.submitStatus model.submitStatus
       , Form.formInput 
          { label = "Username" 
          , ty = "text"

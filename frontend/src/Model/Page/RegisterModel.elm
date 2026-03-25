@@ -97,7 +97,12 @@ type alias RegisterModel =
    , saveSession : Bool
    , registerButtonDisabled : Bool
    , errors : List FieldError
+   , submitStatus : Maybe SubmitStatus
    }
+
+type SubmitStatus
+   = Success String
+   | Error String
 
 type RegisterField
    = Username
@@ -114,6 +119,7 @@ empty =
    , saveSession = False
    , registerButtonDisabled = False
    , errors = []
+   , submitStatus = Nothing
    }
 
 errorInList : RegisterField -> Maybe FieldError -> List FieldError -> List FieldError

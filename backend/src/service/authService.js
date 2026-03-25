@@ -2,13 +2,61 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const userRepo = require("../repository/userRepository");
 
-async function register({ username, email, password }) {
+function buildAuthResponse(user, saveSession = false) {
+   const token = jwt.sign(
+      { id: user._id },
+      "SECRET",
+      { expiresIn: saveSession ? "30d" : "30m" },
+   );
+
+   const userObject = user.toObject ? user.toObject() : user;
+   const { password, ...safeUser } = userObject;
+
+   return { user: safeUser, token };
+}
+
+async function register({ username, email, password, saveSession = false }) {
+   if (!username || username.trim() === "" || username.length < 3) {
+      const err = new Error("Username must be at least 3 characters long");
+      err.status = 400;
+      throw err;
+   }
+
+   if (!email || email.trim() === "" || !/^\S+@\S+\.\S+$/.test(email)) {
+      const err = new Error("Invalid email format");
+      err.status = 400;
+      throw err;
+   }
+
+   if (!password || password.length < 6) {
+      const err = new Error("Password must be at least 6 characters long");
+      err.status = 400;
+      throw err;
+   }
+
+   const normalizedEmail = email.trim().toLowerCase();
+   const existingUser = await userRepo.findByUsernameOrEmail(username, normalizedEmail);
+
+   if (existingUser) {
+      const conflictField = existingUser.email === normalizedEmail ? "email" : "username";
+      const err = new Error(`A user with this ${conflictField} already exists`);
+      err.status = 409;
+      throw err;
+   }
+
    const hashed = await bcrypt.hash(password, 10);
-   return userRepo.createUser({ username, email, password: hashed });
+   const user = await userRepo.createUser({
+      username, 
+      email: normalizedEmail, 
+      password: hashed,
+   });
+
+   return buildAuthResponse(user, saveSession);
 }
 
 async function login({ email, password }) {
-   const user = userRepo.findByEmail(email);
+   const normalizedEmail = email.trim().toLowerCase();
+   const user = await userRepo.findByEmail(normalizedEmail);
    if (!user) {
       throw new Error("User not found");
    }
@@ -18,13 +66,7 @@ async function login({ email, password }) {
       throw new Error("Invalid password");
    }
 
-   const token = jwt.sign(
-      { id: user._id },
-      "SECRET",
-      { expiresIn: "1h" },
-   );
-
-   return { user, token };
+   return buildAuthResponse(user);
 }
 
 module.exports = { register, login }

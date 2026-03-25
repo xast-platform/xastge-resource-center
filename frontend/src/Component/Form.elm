@@ -4,6 +4,19 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput, onCheck)
 import Event exposing (Msg(..))
+import Model.Page.RegisterModel as Register
+
+submitStatus : Maybe Register.SubmitStatus -> Html msg
+submitStatus maybeErr =
+   case maybeErr of
+      Just (Register.Error err) ->
+         div [ class "alert alert-danger text-center" ] [ text err ]
+
+      Just (Register.Success msg) ->
+         div [ class "alert alert-success text-center" ] [ text msg ]
+
+      Nothing ->
+         text ""
 
 formFluid : List (Html msg) -> Html msg
 formFluid comps = 

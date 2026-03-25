@@ -1,8 +1,10 @@
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
-const authRoutes = require("./route/authRoutes");
 const { graphqlHTTP } = require("express-graphql");
+const session = require("express-session");
+
+const authRoutes = require("./route/authRoutes");
 const schema = require("./graphql/schema");
 const resolvers = require("./graphql/resolvers");
 
@@ -29,7 +31,20 @@ app.use("/graphql", graphqlHTTP({
 // ------- Middleware -------
 app.use((err, _req, res, _next) => {
    console.error(err);
+
+   if (err.status) {
+      return res.status(err.status).json({ message: err.message });
+   }
+
    res.status(500).json({ message: err.message });
 });
+
+// ------- Cookies --------
+app.use(session({
+   secret: "cookieSecret",
+   resave: false,
+   saveUninitialized: false,
+   cookie: {},
+}));
 
 app.listen(3000, () => console.log("Server running on http://localhost:3000"));

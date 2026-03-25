@@ -63,7 +63,7 @@ navigation backend links status =
          -- Account status
          [ case status of
             AccountStatus.LoggedOut -> loggedOutView
-            AccountStatus.LoggedIn username -> loggedInView username
+            AccountStatus.LoggedIn userData -> loggedInView userData.username
          , apiModeToggler backend
          ])
       ]

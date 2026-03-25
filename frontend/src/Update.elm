@@ -9,6 +9,10 @@ import Url
 import Model.PageModel as PageModel
 import Model.Page.RegisterModel as Register
 import Model.Page.LoginModel as Login
+import Api.Rest exposing (register)
+import Api.Ports as Ports
+import Http
+import Model.AccountStatus exposing (AccountStatus(..))
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model = 
@@ -41,10 +45,10 @@ update msg model =
             PageModel.Register rm ->
                (  { model | page = PageModel.Register 
                      ( case field of
-                        Register.Username -> Register.validateField Register.Username { rm | username = str }
-                        Register.Email -> Register.validateField Register.Email { rm | email = str }
-                        Register.Password -> Register.validateField Register.Password { rm | password = str }
-                        Register.PasswordAgain -> Register.validateField Register.PasswordAgain { rm | passwordAgain = str }
+                        Register.Username -> Register.validateField Register.Username { rm | username = str, submitStatus = Nothing }
+                        Register.Email -> Register.validateField Register.Email { rm | email = str, submitStatus = Nothing }
+                        Register.Password -> Register.validateField Register.Password { rm | password = str, submitStatus = Nothing }
+                        Register.PasswordAgain -> Register.validateField Register.PasswordAgain { rm | passwordAgain = str, submitStatus = Nothing }
                      ) 
                   }
                , Cmd.none
@@ -69,10 +73,45 @@ update msg model =
                   | registerButtonDisabled = True
                   }
                }
-            , Cmd.none
+            , register 
+               { username = newModel.username
+               , email = newModel.email
+               , password = newModel.password
+               , saveSession = newModel.saveSession
+               }
             )
          else
             ({ model | page = PageModel.Register newModel }, Cmd.none)
+
+      RegisterResponseReceived result ->
+         case model.page of
+            PageModel.Register rm ->
+               case result of
+                  Ok userData ->
+                     (  { model 
+                        | page = PageModel.Register
+                           { rm
+                           | registerButtonDisabled = False
+                           , submitStatus = Just (Register.Success "Registered successfully")
+                           } 
+                        , accountStatus = LoggedIn userData
+                        }
+                     , Ports.saveUserData userData
+                     )
+
+                  Err err ->
+                     ( { model
+                        | page = PageModel.Register
+                           { rm
+                           | registerButtonDisabled = False
+                           , submitStatus = Just (Register.Error (httpErrorToMessage err))
+                           }
+                        }
+                     , Cmd.none
+                     )
+
+            _ ->
+               ( model, Cmd.none )
 
 
       -- LOGIN
@@ -111,3 +150,28 @@ update msg model =
             ({ model | page = PageModel.Login newModel }, Cmd.none)
 
       _ -> (model, Cmd.none)
+
+
+httpErrorToMessage : Http.Error -> String
+httpErrorToMessage err =
+   case err of
+      Http.BadUrl _ ->
+         "Invalid request URL"
+
+      Http.Timeout ->
+         "Request timed out"
+
+      Http.NetworkError ->
+         "Network error, check if backend is running"
+
+      Http.BadStatus status ->
+         if status == 409 then
+            "Username or email already exists"
+         else
+            "Registration failed"
+
+      Http.BadBody message ->
+         if String.trim message == "" then
+            "Unexpected response from server"
+         else
+            message

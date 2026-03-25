@@ -4,6 +4,12 @@ function findByEmail(email) {
    return User.findOne({ email });
 }
 
+function findByUsernameOrEmail(username, email) {
+   return User.findOne({
+      $or: [{ username }, { email }],
+   });
+}
+
 function createUser(data) {
    const user = new User(data);
    return user.save();
@@ -11,5 +17,6 @@ function createUser(data) {
 
 module.exports = {
    findByEmail,
+   findByUsernameOrEmail,
    createUser
 };
