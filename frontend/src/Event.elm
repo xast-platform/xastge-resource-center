@@ -6,18 +6,16 @@ import Browser exposing (UrlRequest)
 import Api.Backend exposing (Backend)
 import Model.Page.LoginModel exposing (LoginModel)
 import Model.Page.RegisterModel exposing (RegisterModel)
+import Model.Page.RegisterModel exposing (RegisterField)
+import Model.Page.LoginModel exposing (LoginField)
 
 type Msg
    = SetBackend Backend
    | SubmitLogin LoginModel
-   | UpdateLoginEmail String
-   | UpdateLoginPassword String
+   | UpdateLoginField LoginField String
    | UpdateLoginSaveSession Bool
    | SubmitRegister RegisterModel
-   | UpdateRegisterUsername String
-   | UpdateRegisterEmail String
-   | UpdateRegisterPassword String
-   | UpdateRegisterPasswordAgain String
+   | UpdateRegisterField RegisterField String
    | UpdateRegisterSaveSession Bool
    | GotResources (Result Http.Error (List String))
    | UrlChange Url

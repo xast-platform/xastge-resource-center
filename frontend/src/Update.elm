@@ -7,8 +7,8 @@ import Browser exposing (UrlRequest(..))
 import Model.Route exposing (parseUrl)
 import Url
 import Model.PageModel as PageModel
-import Model.Page.RegisterModel exposing (validated)
-import Model.Page.RegisterModel exposing (fieldsEmpty)
+import Model.Page.RegisterModel as Register
+import Model.Page.LoginModel as Login
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model = 
@@ -36,24 +36,19 @@ update msg model =
          ({ model | backend = backend }, Cmd.none)
 
       -- REGISTER
-      UpdateRegisterUsername str ->
+      UpdateRegisterField field str ->
          case model.page of
-            PageModel.Register rm -> ( { model | page = PageModel.Register (validated { rm | username = str }) }, Cmd.none )
-            _ -> ( model, Cmd.none )
-
-      UpdateRegisterEmail str ->
-         case model.page of
-            PageModel.Register rm -> ( { model | page = PageModel.Register (validated { rm | email = str }) }, Cmd.none )
-            _ -> ( model, Cmd.none )
-
-      UpdateRegisterPassword str ->
-         case model.page of
-            PageModel.Register rm -> ( { model | page = PageModel.Register (validated { rm | password = str }) }, Cmd.none )
-            _ -> ( model, Cmd.none )
-
-      UpdateRegisterPasswordAgain str ->
-         case model.page of
-            PageModel.Register rm -> ( { model | page = PageModel.Register (validated { rm | passwordAgain = str }) }, Cmd.none )
+            PageModel.Register rm ->
+               (  { model | page = PageModel.Register 
+                     ( case field of
+                        Register.Username -> Register.validateField Register.Username { rm | username = str }
+                        Register.Email -> Register.validateField Register.Email { rm | email = str }
+                        Register.Password -> Register.validateField Register.Password { rm | password = str }
+                        Register.PasswordAgain -> Register.validateField Register.PasswordAgain { rm | passwordAgain = str }
+                     ) 
+                  }
+               , Cmd.none
+               )
             _ -> ( model, Cmd.none )
 
       UpdateRegisterSaveSession val ->
@@ -62,29 +57,36 @@ update msg model =
             _ -> ( model, Cmd.none )
 
       SubmitRegister registerModel ->
-         if fieldsEmpty registerModel then
-            let _ = Debug.log "A" ""
-            in (model, Cmd.none)
-         else
+         let newModel = registerModel
+               |> Register.validateField Register.Username
+               |> Register.validateField Register.Email
+               |> Register.validateField Register.Password
+               |> Register.validateField Register.PasswordAgain
+         in if List.isEmpty newModel.errors then
             (  { model
                | page = PageModel.Register
-                  { registerModel
+                  { newModel
                   | registerButtonDisabled = True
                   }
                }
             , Cmd.none
             )
+         else
+            ({ model | page = PageModel.Register newModel }, Cmd.none)
 
 
       -- LOGIN
-      UpdateLoginEmail str ->
+      UpdateLoginField field str ->
          case model.page of
-            PageModel.Login lm -> ( { model | page = PageModel.Login { lm | email = str } }, Cmd.none )
-            _ -> ( model, Cmd.none )
-
-      UpdateLoginPassword str ->
-         case model.page of
-            PageModel.Login lm -> ( { model | page = PageModel.Login { lm | password = str } }, Cmd.none )
+            PageModel.Login lm ->
+               (  { model | page = PageModel.Login 
+                     ( case field of
+                        Login.Username -> Login.validateField Login.Username { lm | username = str }
+                        Login.Password -> Login.validateField Login.Password { lm | password = str }
+                     ) 
+                  }
+               , Cmd.none
+               )
             _ -> ( model, Cmd.none )
 
       UpdateLoginSaveSession val ->
@@ -93,13 +95,19 @@ update msg model =
             _ -> ( model, Cmd.none )
 
       SubmitLogin loginModel ->
-         (  { model 
-            | page = PageModel.Login 
-               { loginModel 
-               | loginButtonDisabled = True 
+         let newModel = loginModel
+               |> Login.validateField Login.Username
+               |> Login.validateField Login.Password
+         in if List.isEmpty newModel.errors then
+            (  { model
+               | page = PageModel.Login
+                  { newModel
+                  | loginButtonDisabled = True
+                  }
                }
-            }
-         , Cmd.none
-         )
+            , Cmd.none
+            )
+         else
+            ({ model | page = PageModel.Login newModel }, Cmd.none)
 
       _ -> (model, Cmd.none)

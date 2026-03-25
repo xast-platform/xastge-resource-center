@@ -15,28 +15,28 @@ view model =
          { label = "Username" 
          , ty = "text"
          , value = model.username
-         , onInput = UpdateRegisterUsername
+         , onInput = UpdateRegisterField Username
          , error = getUsernameError model.errors
          }
       , Form.formInput
          { label = "Email"
          , ty = "email"
          , value = model.email
-         , onInput = UpdateRegisterEmail
+         , onInput = UpdateRegisterField Email
          , error = getEmailError model.errors
          }
       , Form.formInput
          { label = "Password"
          , ty = "password"
          , value = model.password
-         , onInput = UpdateRegisterPassword
+         , onInput = UpdateRegisterField Password
          , error = getPasswordError model.errors
          }
       , Form.formInput
          { label = "Confirm password"
          , ty = "password"
          , value = model.passwordAgain
-         , onInput = UpdateRegisterPasswordAgain
+         , onInput = UpdateRegisterField PasswordAgain
          , error = getPasswordAgainError model.errors
          }
       , Form.switch        "Save session" model.saveSession UpdateRegisterSaveSession

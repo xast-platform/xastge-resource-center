@@ -6,41 +6,48 @@ type FieldError
    | PasswordError String
    | PasswordAgainError String
 
-fieldsEmpty : RegisterModel -> Bool
-fieldsEmpty model 
-   = model.username == "" 
-   || model.email == "" 
-   || model.password == "" 
-   || model.passwordAgain == ""
+validateField : RegisterField -> RegisterModel -> RegisterModel
+validateField field model = 
+   case field of
+      Username -> 
+         let error = 
+               if model.username == "" then 
+                  Just (UsernameError "Username cannot be empty") 
+               else if String.length model.username < 3 then
+                  Just (UsernameError "Username must be at least 3 characters long")
+               else
+                  Nothing
+         in { model | errors = errorInList Username error model.errors }
 
-validated : RegisterModel -> RegisterModel
-validated model = 
-   let usernameErrors =
-         if (not (String.isEmpty model.username)) && String.length model.username < 3 then
-            [ UsernameError "Username must be at least 3 characters long" ]
-         else
-            []
-       emailErrors =
-         if (not (String.isEmpty model.email)) && (String.length model.email < 5 || not (String.contains "@" model.email)) then
-            [ EmailError "Please enter a valid email address" ]
-         else
-            []
-       passwordErrors =
-         if (not (String.isEmpty model.password)) && String.length model.password < 6 then
-            [ PasswordError "Password must be at least 6 characters long" ]
-         else
-            []
-       passwordAgainErrors =
-         if (not (String.isEmpty model.passwordAgain)) && model.password /= model.passwordAgain then
-            [ PasswordAgainError "Passwords do not match" ]
-         else
-            []
+      Email -> 
+         let error = 
+               if model.email == "" then 
+                  Just (EmailError "Email cannot be empty") 
+               else if not (String.contains "@" model.email) then
+                  Just (EmailError "This field must be a valid email")
+               else 
+                  Nothing
+         in { model | errors = errorInList Email error model.errors }
 
-   in { model | errors = usernameErrors 
-         ++ emailErrors 
-         ++ passwordErrors 
-         ++ passwordAgainErrors 
-      }
+      Password -> 
+         let error = 
+               if model.password == "" then 
+                  Just (PasswordError "Password cannot be empty") 
+               else if String.length model.password < 6 then
+                  Just (PasswordError "Password must be at least 6 characters long")
+               else 
+                  Nothing
+         in { model | errors = errorInList Password error model.errors }
+
+      PasswordAgain -> 
+         let error = 
+               if model.passwordAgain == "" then 
+                  Just (PasswordAgainError "Please confirm your password") 
+               else if model.passwordAgain /= model.password then
+                  Just (PasswordAgainError "Passwords do not match")
+               else 
+                  Nothing
+         in { model | errors = errorInList PasswordAgain error model.errors }
 
 getUsernameError : List FieldError -> Maybe String
 getUsernameError errors =
@@ -92,6 +99,12 @@ type alias RegisterModel =
    , errors : List FieldError
    }
 
+type RegisterField
+   = Username
+   | Email
+   | Password
+   | PasswordAgain
+
 empty : RegisterModel
 empty = 
    { username = ""
@@ -102,3 +115,18 @@ empty =
    , registerButtonDisabled = False
    , errors = []
    }
+
+errorInList : RegisterField -> Maybe FieldError -> List FieldError -> List FieldError
+errorInList field maybeError errors =
+   let filteredErrors = 
+         List.filter (\e ->
+            case (field, e) of
+               (Username, UsernameError _) -> False
+               (Email, EmailError _) -> False
+               (Password, PasswordError _) -> False
+               (PasswordAgain, PasswordAgainError _) -> False
+               _ -> True
+         ) errors
+   in case maybeError of
+         Just err -> err :: filteredErrors
+         Nothing -> filteredErrors
