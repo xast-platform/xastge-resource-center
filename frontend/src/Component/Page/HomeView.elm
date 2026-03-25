@@ -6,7 +6,7 @@ import Html.Attributes exposing (..)
 import LucideIcons as LucideIcon
 
 view : HomeModel -> Html msg
-view model = div [ class "text-bg-dark" ] 
+view _ = div [ class "text-bg-dark" ] 
    [ homeHeader 
       (LucideIcon.cuboidIcon [])
       "XastGE Game Assets" 

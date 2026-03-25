@@ -2,7 +2,7 @@ module Component.Form exposing (..)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onInput, onCheck)
 import Event exposing (Msg(..))
 
 formFluid : List (Html msg) -> Html msg
@@ -36,10 +36,10 @@ submitButton lab msg dis =
          [ text lab ]
       ]
 
-switch : String -> Bool -> Html msg
-switch lab val = 
+switch : String -> Bool -> (Bool -> msg) -> Html msg
+switch lab val onCheckMsg = 
    div [ class "form-check form-switch mb-3" ]
-      [ input [ class "form-check-input", id "switchCheckDefault", attribute "role" "switch", type_ "checkbox", checked val ]
+      [ input [ class "form-check-input", id "switchCheckDefault", attribute "role" "switch", type_ "checkbox", checked val, onCheck onCheckMsg ]
          []
       , label [ class "form-check-label text-light", for "switchCheckDefault" ]
          [ text lab ]
@@ -51,9 +51,30 @@ heading h =
       [ class "mb-3 text-center text-light mt-3" ]
       [ text h ]
 
-formInput : String -> String -> String -> Html msg
-formInput lab ty val = 
+formInput : FormInputProps msg -> Html msg
+formInput props =
    div [ class "mb-3" ]
-      [ label [ class "form-label text-light" ] [ text lab ]
-      , input [ class "form-control text-bg-dark border-secondary", type_ ty, value val ] []
+      ([ label [ class "form-label text-light" ] [ text props.label ]
+      , input
+         [ class "form-control text-bg-dark border-secondary"
+         , type_ props.ty
+         , value props.value
+         , onInput props.onInput
+         ]
+         []
       ]
+         ++ case props.error of
+               Just err ->
+                  [ p [ class "text-danger small mt-1" ] [ text err ] ]
+
+               Nothing ->
+                  []
+      )
+
+type alias FormInputProps msg =
+   { label : String
+   , ty : String
+   , value : String
+   , onInput : (String -> msg)
+   , error : Maybe String
+   }

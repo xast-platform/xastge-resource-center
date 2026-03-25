@@ -10,7 +10,15 @@ import Model.Page.RegisterModel exposing (RegisterModel)
 type Msg
    = SetBackend Backend
    | SubmitLogin LoginModel
+   | UpdateLoginEmail String
+   | UpdateLoginPassword String
+   | UpdateLoginSaveSession Bool
    | SubmitRegister RegisterModel
+   | UpdateRegisterUsername String
+   | UpdateRegisterEmail String
+   | UpdateRegisterPassword String
+   | UpdateRegisterPasswordAgain String
+   | UpdateRegisterSaveSession Bool
    | GotResources (Result Http.Error (List String))
    | UrlChange Url
    | LinkClicked UrlRequest

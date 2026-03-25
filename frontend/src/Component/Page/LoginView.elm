@@ -11,9 +11,9 @@ view : LoginModel -> Html Msg
 view model = 
    Form.formFluid 
       [ Form.heading      "Login"
-      , Form.formInput    "Email" "email" model.email
-      , Form.formInput    "Password" "password" model.password
-      , Form.switch       "Save session" model.saveSession
+      -- , Form.formInput    "Email" "email" model.email UpdateLoginEmail
+      -- , Form.formInput    "Password" "password" model.password UpdateLoginPassword
+      , Form.switch       "Save session" model.saveSession UpdateLoginSaveSession
       , Form.submitButton "Login" (SubmitLogin model) model.loginButtonDisabled
       , Form.lnk "Don't have an account? Register!" "/register"
       ]
