@@ -6,10 +6,11 @@ type alias DashboardModel =
 
 type DashboardTab
    = Home
-   | Assets
+   | Favorite
+   | Uploaded
    | Analytics
    | Settings
-   
+
 empty : DashboardModel
 empty = 
    { tab = Home

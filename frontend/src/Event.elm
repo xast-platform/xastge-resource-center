@@ -29,3 +29,4 @@ type Msg
    | GotResources (Result Http.Error (List String))
    | UrlChange Url
    | LinkClicked UrlRequest
+   | DummyEvent

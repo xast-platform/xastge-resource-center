@@ -27,12 +27,12 @@ update msg model =
                | route = newRoute 
                , page = PageModel.fromRoute newRoute
                }
-            , if shouldRedirectAuthenticated model.accountStatus newRoute then
-                 Nav.replaceUrl model.key "/"
-              else if shouldRedirectAnonymous model.accountStatus newRoute then
-                 Nav.replaceUrl model.key "/login"
-              else
-                 Cmd.none
+            ,  if shouldRedirectAuthenticated model.accountStatus newRoute then
+                  Nav.replaceUrl model.key "/"
+               else if shouldRedirectAnonymous model.accountStatus newRoute then
+                  Nav.replaceUrl model.key "/login"
+               else
+                  Cmd.none
             )
 
       LinkClicked req ->
