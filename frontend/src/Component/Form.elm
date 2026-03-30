@@ -1,8 +1,10 @@
 module Component.Form exposing (..)
 
+import File exposing (File)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput, onCheck)
+import Html.Events exposing (on, onCheck, onClick, onInput)
+import Json.Decode as Decode
 import Event exposing (Msg(..))
 import Model.Page.RegisterModel as Register
 
@@ -41,6 +43,7 @@ submitButton lab msg dis =
          [ class "btn btn-info px-5"
          , type_ "button"
          , onClick msg
+         , disabled dis
          , classList 
             [ ("btn-smooth", True)
             , ("is-disabled", dis)
@@ -89,5 +92,90 @@ type alias FormInputProps msg =
    , ty : String
    , value : String
    , onInput : (String -> msg)
+   , error : Maybe String
+   }
+
+formTextarea : FormTextareaProps msg -> Html msg
+formTextarea props =
+   div [ class "mb-3" ]
+      ([ label [ class "form-label text-light" ] [ text props.label ]
+      , textarea
+         [ class "form-control text-bg-dark border-secondary"
+         , rows props.rows
+         , value props.value
+         , onInput props.onInput
+         ]
+         []
+      ]
+         ++ case props.error of
+               Just err ->
+                  [ p [ class "text-danger small mt-1" ] [ text err ] ]
+
+               Nothing ->
+                  []
+      )
+
+type alias FormTextareaProps msg =
+   { label : String
+   , value : String
+   , rows : Int
+   , onInput : (String -> msg)
+   , error : Maybe String
+   }
+
+formSelect : FormSelectProps msg -> Html msg
+formSelect props =
+   div [ class "mb-3" ]
+      ([ label [ class "form-label text-light" ] [ text props.label ]
+      , select
+         [ class "form-select text-bg-dark border-secondary form-select-sm"
+         , onInput props.onInput
+         ]
+         (props.options
+            |> List.map
+               (\optionValue ->
+                  option [ selected (props.value == optionValue) ] [ text optionValue ]
+               )
+         )
+      ]
+         ++ case props.error of
+               Just err ->
+                  [ p [ class "text-danger small mt-1" ] [ text err ] ]
+
+               Nothing ->
+                  []
+      )
+
+type alias FormSelectProps msg =
+   { label : String
+   , value : String
+   , options : List String
+   , onInput : (String -> msg)
+   , error : Maybe String
+   }
+
+fileInput : FileInputProps msg -> Html msg
+fileInput props =
+   div [ class "mb-3" ]
+      ([ label [ class "form-label text-light" ] [ text props.label ]
+      , input
+         [ class "form-control text-bg-dark border-secondary form-control-sm"
+         , type_ "file"
+         , on "change" (Decode.map props.onSelect (Decode.at [ "target", "files", "0" ] File.decoder))
+         ]
+         []
+      ]
+         ++ case props.error of
+               Just err ->
+                  [ p [ class "text-danger small mt-1" ] [ text err ] ]
+
+               Nothing ->
+                  []
+      )
+
+type alias FileInputProps msg =
+   { label : String
+   , onSelect : (File -> msg)
+   , fileName : Maybe String
    , error : Maybe String
    }

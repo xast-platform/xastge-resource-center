@@ -1,15 +1,16 @@
 module Component.Page.DashboardView exposing (..)
 
-import Model.Page.DashboardModel exposing (DashboardModel)
+import Model.Page.DashboardModel as DashboardModel exposing (DashboardModel, DashboardTab(..))
 import Model.AccountStatus exposing (UserData)
 import Event exposing (Msg)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Model.Page.DashboardModel exposing (DashboardTab(..))
 import Html.Events exposing (onClick)
 import Event exposing (Msg(..))
 import List exposing (head)
 import LucideIcons as LucideIcon
+import Component.Form as Form
+import File
 
 view : DashboardModel -> UserData -> Html Msg
 view model _ = 
@@ -60,8 +61,35 @@ view model _ =
                [ text "favorite tab"
                ]
             )
-         ,  ( Uploaded, "Uploaded", 
-               [ text "assets tab"
+         ,  ( Upload, "Upload", 
+               [ subsection "Upload New Asset"
+                  [ uploadForm model ]
+               , subsection "Uploaded assets" 
+                  [ card
+                     { image = "https://dummyimage.com/200x200/a6a6a6/ffffff.png"
+                     , label = "Asset 2"
+                     , buttons =
+                        [  { icon = LucideIcon.pencilIcon []
+                           , color = Secondary
+                           }
+                        ,  { icon = LucideIcon.trash2Icon []
+                           , color = Danger
+                           }
+                        ]
+                     }
+                  , card
+                     { image = "https://dummyimage.com/200x200/a6a6a6/ffffff.png"
+                     , label = "Asset 2"
+                     , buttons =
+                        [  { icon = LucideIcon.pencilIcon []
+                           , color = Secondary
+                           }
+                        ,  { icon = LucideIcon.trash2Icon []
+                           , color = Danger
+                           }
+                        ]
+                     }
+                  ]
                ]
             )
          ,  ( Analytics, "Analytics", 
@@ -74,6 +102,46 @@ view model _ =
             )
          ]
       }
+
+uploadForm : DashboardModel -> Html Msg
+uploadForm model =
+   div [ class "w-100" ]
+      [ Form.submitStatus model.uploadStatus
+      , Form.formSelect
+         { label = "Asset Type"
+         , value = model.assetType
+         , options = [ "Scene", "Model", "Script", "Texture", "Audio" ]
+         , onInput = UpdateDashboardAssetType
+         , error = DashboardModel.getAssetTypeError model.uploadErrors
+         }
+      , Form.fileInput
+         { label = "Asset file"
+         , onSelect = SelectDashboardAssetFile
+         , fileName = model.assetFile |> Maybe.map File.name
+         , error = DashboardModel.getAssetFileError model.uploadErrors
+         }
+      , Form.fileInput
+         { label = "Thumbnail file"
+         , onSelect = SelectDashboardThumbnailFile
+         , fileName = model.thumbnailFile |> Maybe.map File.name
+         , error = DashboardModel.getThumbnailError model.uploadErrors
+         }
+      , Form.formTextarea
+         { label = "Description"
+         , value = model.description
+         , rows = 3
+         , onInput = UpdateDashboardDescription
+         , error = DashboardModel.getDescriptionError model.uploadErrors
+         }
+      , Form.formInput
+         { label = "Tags (comma separated)"
+         , ty = "text"
+         , value = model.tags
+         , onInput = UpdateDashboardTags
+         , error = Nothing
+         }
+      , Form.submitButton "Upload Asset" SubmitDashboardUpload model.uploadButtonDisabled
+      ]
 
 card : CardProps msg -> Html msg
 card props = 
@@ -136,9 +204,10 @@ type alias DashboardPanelProps =
 
 dashboardPanel : DashboardPanelProps -> Html Msg
 dashboardPanel props = 
-   div [ class "d-flex flex-column flex-lg-row vh-100 mt-2" ]
+   div
+   [ class "dashboard-shell d-flex flex-column flex-lg-row" ]
       -- Control panel
-      [ div [ class "border-end border-secondary text-white p-3 col-lg-2 col-md-12 col-12 col-sm-12 flex-lg-shrink-0" ]
+   [ div [ class "dashboard-sidebar border-end border-secondary text-white p-3 col-lg-2 col-md-12 col-12 col-sm-12 flex-lg-shrink-0" ]
          [ h3 [ class "ms-2 mb-3" ] [ text "Dashboard" ]
          -- Tabs
          , ul [ class "nav nav-pills flex-column mb-auto" ]
@@ -164,7 +233,7 @@ dashboardPanel props =
                |> head
       in case currentState of 
             Just (_, name, content) -> 
-               div [ class "flex-grow-1 overflow-auto p-4 col-12 col-lg" ]
+               div [ class "dashboard-content flex-grow-1 p-4 col-12 col-lg" ]
                   (  [ h1 [ class "text-light display-4" ] [ text (String.toUpper name) ]
                      , hr [class "border border-secondary opacity-50 mb-4"] []
                      ] 

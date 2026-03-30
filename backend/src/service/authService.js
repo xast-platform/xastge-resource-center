@@ -54,7 +54,7 @@ async function register({ username, email, password, saveSession = false }) {
    return buildAuthResponse(user, saveSession);
 }
 
-async function login({ username, password }) {
+async function login({ username, password, saveSession = false }) {
    const user = await userRepo.findByUsername(username);
    if (!user) {
       throw new Error("User \""+username+"\" not found");
@@ -65,7 +65,7 @@ async function login({ username, password }) {
       throw new Error("Invalid password");
    }
 
-   return buildAuthResponse(user);
+   return buildAuthResponse(user, saveSession);
 }
 
 module.exports = { register, login }

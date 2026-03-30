@@ -50,3 +50,29 @@ body {
   background-position-x: center;
   background-attachment: fixed;
 }
+
+.dashboard-shell {
+  height: auto;
+  overflow: visible;
+}
+
+.dashboard-sidebar,
+.dashboard-content {
+  overflow: visible;
+}
+
+@media (min-width: 992px) {
+  .dashboard-shell {
+    height: calc(100dvh - 4.5rem);
+    overflow: hidden;
+  }
+
+  .dashboard-sidebar,
+  .dashboard-content {
+    overflow: auto;
+  }
+
+  .dashboard-content {
+    min-height: 0;
+  }
+}

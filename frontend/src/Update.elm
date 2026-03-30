@@ -11,10 +11,10 @@ import Model.Route exposing (Route, parseUrl)
 import Model.PageModel as PageModel
 import Model.Page.RegisterModel as Register
 import Model.Page.LoginModel as Login
+import Model.Page.DashboardModel as Dashboard
 import Model.AccountStatus exposing (AccountStatus(..))
-import Api.Rest exposing (register)
+import Api.Rest exposing (login, register, uploadAsset)
 import Api.Ports as Ports
-import Api.Rest exposing (login)
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model = 
@@ -209,6 +209,171 @@ update msg model =
          case model.page of
             PageModel.Dashboard dbm ->
                ( { model | page = PageModel.Dashboard { dbm | tab = tab } }, Cmd.none )
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateDashboardAssetType assetType ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               ( { model
+                  | page = PageModel.Dashboard
+                     (Dashboard.validateUploadField Dashboard.AssetType
+                        { dbm
+                        | assetType = assetType
+                        , uploadStatus = Nothing
+                        }
+                     )
+                  }
+               , Cmd.none
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateDashboardDescription description ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               ( { model
+                  | page = PageModel.Dashboard
+                     (Dashboard.validateUploadField Dashboard.Description
+                        { dbm
+                        | description = description
+                        , uploadStatus = Nothing
+                        }
+                     )
+                  }
+               , Cmd.none
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateDashboardTags tags ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               ( { model | page = PageModel.Dashboard { dbm | tags = tags, uploadStatus = Nothing } }
+               , Cmd.none
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      SelectDashboardAssetFile assetFile ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               ( { model
+                  | page = PageModel.Dashboard
+                     (Dashboard.validateUploadField Dashboard.AssetFile
+                        { dbm
+                        | assetFile = Just assetFile
+                        , uploadStatus = Nothing
+                        }
+                     )
+                  }
+               , Cmd.none
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      SelectDashboardThumbnailFile thumbnailFile ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               ( { model
+                  | page = PageModel.Dashboard
+                     (Dashboard.validateUploadField Dashboard.ThumbnailFile
+                        { dbm
+                        | thumbnailFile = Just thumbnailFile
+                        , uploadStatus = Nothing
+                        }
+                     )
+                  }
+               , Cmd.none
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      SubmitDashboardUpload ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               let
+                  validatedModel =
+                     dbm
+                        |> Dashboard.validateUploadField Dashboard.AssetType
+                        |> Dashboard.validateUploadField Dashboard.AssetFile
+                        |> Dashboard.validateUploadField Dashboard.ThumbnailFile
+                        |> Dashboard.validateUploadField Dashboard.Description
+               in
+               if List.isEmpty validatedModel.uploadErrors then
+                  case ( model.accountStatus, validatedModel.assetFile ) of
+                     ( LoggedIn userData, Just assetFile ) ->
+                        ( { model
+                           | page = PageModel.Dashboard
+                              { validatedModel
+                              | uploadButtonDisabled = True
+                              }
+                           }
+                        , uploadAsset
+                           { assetType = validatedModel.assetType
+                           , description = String.trim validatedModel.description
+                           , tags = validatedModel.tags
+                           , token = userData.token
+                           , assetFile = assetFile
+                           , thumbnailFile = validatedModel.thumbnailFile
+                           }
+                        )
+
+                     ( LoggedOut, _ ) ->
+                        ( { model
+                           | page = PageModel.Dashboard
+                              { validatedModel
+                              | uploadStatus = Just (Register.Error "You must be logged in")
+                              }
+                           }
+                        , Cmd.none
+                        )
+
+                     ( _, Nothing ) ->
+                        ( { model | page = PageModel.Dashboard validatedModel }, Cmd.none )
+               else
+                  ( { model | page = PageModel.Dashboard validatedModel }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      DashboardUploadResponseReceived result ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               case result of
+                  Ok message ->
+                     ( { model
+                        | page = PageModel.Dashboard
+                           { dbm
+                           | assetType = "Scene"
+                           , assetFile = Nothing
+                           , thumbnailFile = Nothing
+                           , description = ""
+                           , tags = ""
+                           , uploadButtonDisabled = False
+                           , uploadErrors = []
+                           , uploadStatus = Just (Register.Success message)
+                           }
+                        }
+                     , Cmd.none
+                     )
+
+                  Err err ->
+                     ( { model
+                        | page = PageModel.Dashboard
+                           { dbm
+                           | uploadButtonDisabled = False
+                           , uploadStatus = Just (Register.Error (httpErrorToMessage err))
+                           }
+                        }
+                     , Cmd.none
+                     )
+
             _ ->
                ( model, Cmd.none )
 

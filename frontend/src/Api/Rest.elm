@@ -1,6 +1,7 @@
 module Api.Rest exposing (..)
 
 import Http
+import File exposing (File)
 import Json.Decode as Decode
 import Event exposing (Msg(..))
 import Api.Config exposing (backendUrl)
@@ -55,6 +56,43 @@ loginEncoder req =
       , ( "saveSession", Encode.bool req.saveSession )
       ]
 
+-- Dashboard asset upload
+type alias UploadAssetRequest =
+   { assetType : String
+   , description : String
+   , tags : String
+   , token : String
+   , assetFile : File
+   , thumbnailFile : Maybe File
+   }
+
+uploadAsset : UploadAssetRequest -> Cmd Msg
+uploadAsset req =
+   let
+      parts =
+         [ Http.stringPart "assetType" req.assetType
+         , Http.stringPart "description" req.description
+         , Http.stringPart "tags" req.tags
+         , Http.filePart "assetFile" req.assetFile
+         ]
+            ++ (case req.thumbnailFile of
+                  Just thumbnailFile ->
+                     [ Http.filePart "thumbnailFile" thumbnailFile ]
+
+                  Nothing ->
+                     []
+               )
+   in
+   Http.request
+      { method = "POST"
+      , headers = [ Http.header "Authorization" ("Bearer " ++ req.token) ]
+      , url = backendUrl ++ "/assets/upload"
+      , body = Http.multipartBody parts
+      , expect = Http.expectStringResponse DashboardUploadResponseReceived uploadAssetResponseResolver
+      , timeout = Nothing
+      , tracker = Nothing
+      }
+
 -- Retrieve User
 retrieveUserResponseResolver : Http.Response String -> Result Http.Error UserData
 retrieveUserResponseResolver response =
@@ -106,7 +144,39 @@ resourcesDecoder : Decode.Decoder (List String)
 resourcesDecoder =
    Decode.list Decode.string
 
+uploadAssetResponseResolver : Http.Response String -> Result Http.Error String
+uploadAssetResponseResolver response =
+   case response of
+      Http.BadUrl_ _ ->
+         Err (Http.BadBody "Invalid request URL")
+
+      Http.Timeout_ ->
+         Err (Http.BadBody "Request timed out")
+
+      Http.NetworkError_ ->
+         Err (Http.BadBody "Network error, check if backend is running")
+
+      Http.BadStatus_ _ body ->
+         case Decode.decodeString backendErrorDecoder body of
+            Ok message ->
+               Err (Http.BadBody message)
+
+            Err _ ->
+               Err (Http.BadBody "Upload failed")
+
+      Http.GoodStatus_ _ body ->
+         case Decode.decodeString backendMessageDecoder body of
+            Ok message ->
+               Ok message
+
+            Err _ ->
+               Ok "Asset uploaded successfully"
+
 -- General
 backendErrorDecoder : Decode.Decoder String
 backendErrorDecoder =
+   Decode.field "message" Decode.string
+
+backendMessageDecoder : Decode.Decoder String
+backendMessageDecoder =
    Decode.field "message" Decode.string

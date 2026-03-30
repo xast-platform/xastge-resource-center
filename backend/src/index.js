@@ -1,3 +1,19 @@
+const fs = require("fs");
+const path = require("path");
+const dotenv = require("dotenv");
+
+const envCandidates = [
+   path.resolve(__dirname, "../.env"),
+   path.resolve(__dirname, "../../.env"),
+];
+
+for (const envPath of envCandidates) {
+   if (fs.existsSync(envPath)) {
+      dotenv.config({ path: envPath });
+      break;
+   }
+}
+
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
@@ -5,6 +21,7 @@ const { graphqlHTTP } = require("express-graphql");
 const session = require("express-session");
 
 const authRoutes = require("./route/authRoutes");
+const assetRoutes = require("./route/assetRoutes");
 const schema = require("./graphql/schema");
 const resolvers = require("./graphql/resolvers");
 
@@ -20,6 +37,7 @@ mongoose.connect(mongoUrl)
 
 // ------- REST API -------
 app.use("/api/auth", authRoutes);
+app.use("/api/assets", assetRoutes);
 
 // ------- GraphQL -------
 app.use("/graphql", graphqlHTTP({
