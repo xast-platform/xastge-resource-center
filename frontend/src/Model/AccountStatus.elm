@@ -8,4 +8,6 @@ type alias UserData =
    { username : String
    , email : String
    , token : String
+   , confirmed : Bool
+   , role : String
    }

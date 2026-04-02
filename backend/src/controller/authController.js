@@ -18,4 +18,22 @@ async function login(req, res, next) {
    }
 }
 
-module.exports = { register, login };
+async function verifyEmail(req, res, next) {
+   try {
+      const result = await authService.verifyEmail(req.query.token);
+      res.json(result);
+   } catch (err) {
+      next(err);
+   }
+}
+
+async function me(req, res, next) {
+   try {
+      const result = await authService.getMe(req.user.id);
+      res.json(result);
+   } catch (err) {
+      next(err);
+   }
+}
+
+module.exports = { register, login, verifyEmail, me };

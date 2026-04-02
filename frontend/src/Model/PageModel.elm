@@ -9,6 +9,8 @@ import Model.Page.RegisterModel exposing (RegisterModel)
 import Model.Page.RegisterModel as RegisterModel
 import Model.Page.DashboardModel exposing (DashboardModel)
 import Model.Page.DashboardModel as DashboardModel
+import Model.Page.AssetModel exposing (AssetModel)
+import Model.Page.AssetModel as AssetModel
 
 type PageModel 
    = Home HomeModel 
@@ -16,6 +18,7 @@ type PageModel
    | Login LoginModel
    | Register RegisterModel
    | Dashboard DashboardModel
+   | Asset AssetModel
    | NotFound String
 
 fromRoute : Route -> PageModel
@@ -30,5 +33,7 @@ fromRoute route = case route of
       Register RegisterModel.empty
    Route.Dashboard ->
       Dashboard DashboardModel.empty
+   Route.Asset assetId ->
+      Asset (AssetModel.init assetId)
    Route.NotFound page -> 
       NotFound page

@@ -1,6 +1,7 @@
 module Model.Page.DashboardModel exposing (..)
 
 import File exposing (File)
+import Model.Asset exposing (Asset, AssetAnalytics)
 import Model.Page.RegisterModel exposing (SubmitStatus)
 
 type alias DashboardModel =
@@ -13,6 +14,18 @@ type alias DashboardModel =
    , uploadButtonDisabled : Bool
    , uploadErrors : List UploadFieldError
    , uploadStatus : Maybe SubmitStatus
+   , myAssets : List Asset
+   , favoriteAssets : List Asset
+   , analytics : List AssetAnalytics
+   , loadingAssets : Bool
+   , loadingAnalytics : Bool
+   , listStatus : Maybe SubmitStatus
+   , editingAsset : Maybe Asset
+   , editAssetType : String
+   , editDescription : String
+   , editTags : String
+   , editButtonDisabled : Bool
+   , editStatus : Maybe SubmitStatus
    }
 
 type UploadFieldError
@@ -181,13 +194,13 @@ isAssetFileValidForType assetType file =
          isModel file
 
       "Texture" ->
-         isImage file
+         isImage file || isZip file
 
       "Audio" ->
          isAudio file
 
       "Script" ->
-         isScript file
+         isScript file || isZip file
 
       "Scene" ->
          isScene file
@@ -199,22 +212,37 @@ assetTypeErrorMessage : String -> String
 assetTypeErrorMessage assetType =
    case assetType of
       "Model" ->
-         "Model supports .gltf, .glb, .obj"
+         "Model supports .gltf, .glb, .obj, .zip"
 
       "Texture" ->
-         "Texture must be an image file"
+         "Texture supports image files and .zip"
 
       "Audio" ->
          "Audio must be an audio file"
 
       "Script" ->
-         "Script supports .js, .ts, .lua, .py, .cs, .json"
+         "Script supports .js, .ts, .lua, .py, .cs, .json, .zip"
 
       "Scene" ->
-         "Scene supports .scene, .unity, .zip, .rar, .7z"
+         "Scene supports .xsc, .zip, .rar, .7z"
 
       _ ->
          "Unsupported file type for selected asset type"
+
+isZip : File -> Bool
+isZip file =
+   let
+      mime =
+         File.mime file
+
+      name =
+         String.toLower (File.name file)
+   in
+   List.any identity
+      [ mime == "application/zip"
+      , mime == "application/x-zip-compressed"
+      , String.endsWith ".zip" name
+      ]
 
 isModel : File -> Bool
 isModel file =
@@ -226,7 +254,8 @@ isModel file =
          String.toLower (File.name file)
    in
    List.any identity
-      [ mime == "model/gltf+json"
+      [ isZip file
+      , mime == "model/gltf+json"
       , mime == "model/gltf-binary"
       , String.endsWith ".gltf" name
       , String.endsWith ".glb" name
@@ -270,8 +299,7 @@ isScene file =
          String.toLower (File.name file)
    in
    List.any identity
-      [ String.endsWith ".scene" name
-      , String.endsWith ".unity" name
+      [ String.endsWith ".xsc" name
       , String.endsWith ".zip" name
       , String.endsWith ".rar" name
       , String.endsWith ".7z" name
@@ -284,6 +312,17 @@ type DashboardTab
    | Analytics
    | Settings
 
+tagsFromString : String -> List String
+tagsFromString tags =
+   tags
+      |> String.split ","
+      |> List.map String.trim
+      |> List.filter (\tag -> tag /= "")
+
+tagsToString : List String -> String
+tagsToString tags =
+   String.join ", " tags
+
 empty : DashboardModel
 empty = 
    { tab = Home
@@ -295,4 +334,16 @@ empty =
    , uploadButtonDisabled = False
    , uploadErrors = []
    , uploadStatus = Nothing
+   , myAssets = []
+   , favoriteAssets = []
+   , analytics = []
+   , loadingAssets = False
+   , loadingAnalytics = False
+   , listStatus = Nothing
+   , editingAsset = Nothing
+   , editAssetType = "Scene"
+   , editDescription = ""
+   , editTags = ""
+   , editButtonDisabled = False
+   , editStatus = Nothing
    }

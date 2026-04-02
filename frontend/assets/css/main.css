@@ -45,6 +45,12 @@ body {
   margin-right: -10px;
 }
 
+.image-ratio-fixed {
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  width: 100%;
+}
+
 .header {
   background-image: url("/assets/img/header.jpg");
   background-position-x: center;

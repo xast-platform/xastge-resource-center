@@ -2,6 +2,7 @@ module Update exposing (..)
 
 import Url
 import Http
+import Task
 import Browser.Navigation as Nav
 import Model exposing (Model)
 import Event exposing (Msg(..))
@@ -12,191 +13,265 @@ import Model.PageModel as PageModel
 import Model.Page.RegisterModel as Register
 import Model.Page.LoginModel as Login
 import Model.Page.DashboardModel as Dashboard
+import Model.Page.AssetModel as AssetModel
 import Model.AccountStatus exposing (AccountStatus(..))
-import Api.Rest exposing (login, register, uploadAsset)
+import Api.Rest exposing (login, register, uploadAsset, getAssets, getFavoriteAssets, getAssetById, toggleFavoriteAsset, reportAsset, updateAsset, deleteAsset, getDownloadAnalytics, getMe)
+import Api.Backend as Backend
 import Api.Ports as Ports
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model = 
+update msg model =
    case msg of
       -- GENERAL
       UrlChange url ->
-         let newRoute = parseUrl url
-         in 
-            (  { model 
-               | route = newRoute 
+         let
+            newRoute = parseUrl url
+            nextModel =
+               { model
+               | route = newRoute
                , page = PageModel.fromRoute newRoute
                }
-            ,  if shouldRedirectAuthenticated model.accountStatus newRoute then
+         in
+            ( nextModel
+            , if shouldRedirectAuthenticated model.accountStatus newRoute then
                   Nav.replaceUrl model.key "/"
                else if shouldRedirectAnonymous model.accountStatus newRoute then
                   Nav.replaceUrl model.key "/login"
                else
-                  Cmd.none
+                  loadRouteData nextModel
             )
 
       LinkClicked req ->
-         case req of 
+         case req of
             External href ->
                ( model, Nav.load href )
 
             Internal url ->
-               ( model, Nav.pushUrl model.key (Url.toString url) )     
-      
-      SetBackend backend -> 
-         ({ model | backend = backend }, Cmd.none)
+               ( model, Nav.pushUrl model.key (Url.toString url) )
+
+      SetBackend backend ->
+         ( { model | backend = backend }, Ports.saveBackend (Backend.toString backend) )
+
+      LoadDashboardData ->
+         case ( model.accountStatus, model.page ) of
+            ( LoggedIn userData, PageModel.Dashboard dbm ) ->
+               ( { model
+                  | page =
+                     PageModel.Dashboard
+                        { dbm
+                        | loadingAssets = True
+                        , loadingAnalytics = True
+                        , listStatus = Nothing
+                        }
+                 }
+               , Cmd.batch
+                  [ getMe userData.token
+                  , getAssets { token = Just userData.token, mine = True, favorites = False }
+                  , getFavoriteAssets { token = Just userData.token, mine = False, favorites = True }
+                  , getDownloadAnalytics { token = userData.token }
+                  ]
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      LoadAssetPage assetId ->
+         let
+            token =
+               case model.accountStatus of
+                  LoggedIn userData ->
+                     Just userData.token
+
+                  LoggedOut ->
+                     Nothing
+
+            nextModel =
+               { model | page = PageModel.Asset (AssetModel.init assetId) }
+         in
+            ( nextModel
+            , getAssetById { id = assetId, token = token }
+            )
 
       -- REGISTER
       UpdateRegisterField field str ->
          case model.page of
             PageModel.Register rm ->
-               (  { model | page = PageModel.Register 
+               ( { model | page = PageModel.Register
                      ( case field of
                         Register.Username -> Register.validateField Register.Username { rm | username = str, submitStatus = Nothing }
                         Register.Email -> Register.validateField Register.Email { rm | email = str, submitStatus = Nothing }
                         Register.Password -> Register.validateField Register.Password { rm | password = str, submitStatus = Nothing }
                         Register.PasswordAgain -> Register.validateField Register.PasswordAgain { rm | passwordAgain = str, submitStatus = Nothing }
-                     ) 
+                     )
                   }
                , Cmd.none
                )
-            _ -> ( model, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
 
       UpdateRegisterSaveSession val ->
          case model.page of
-            PageModel.Register rm -> ( { model | page = PageModel.Register { rm | saveSession = val } }, Cmd.none )
-            _ -> ( model, Cmd.none )
+            PageModel.Register rm ->
+               ( { model | page = PageModel.Register { rm | saveSession = val } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
 
       SubmitRegister registerModel ->
-         let newModel = registerModel
-               |> Register.validateField Register.Username
-               |> Register.validateField Register.Email
-               |> Register.validateField Register.Password
-               |> Register.validateField Register.PasswordAgain
-         in if List.isEmpty newModel.errors then
-            (  { model
-               | page = PageModel.Register
-                  { newModel
-                  | registerButtonDisabled = True
+         let
+            newModel =
+               registerModel
+                  |> Register.validateField Register.Username
+                  |> Register.validateField Register.Email
+                  |> Register.validateField Register.Password
+                  |> Register.validateField Register.PasswordAgain
+         in
+            if List.isEmpty newModel.errors then
+               ( { model
+                  | page =
+                     PageModel.Register
+                        { newModel
+                        | registerButtonDisabled = True
+                        }
+                 }
+               , register
+                  { username = newModel.username
+                  , email = newModel.email
+                  , password = newModel.password
+                  , saveSession = newModel.saveSession
                   }
-               }
-            , register 
-               { username = newModel.username
-               , email = newModel.email
-               , password = newModel.password
-               , saveSession = newModel.saveSession
-               }
-            )
-         else
-            ({ model | page = PageModel.Register newModel }, Cmd.none)
+               )
+            else
+               ( { model | page = PageModel.Register newModel }, Cmd.none )
 
       RegisterResponseReceived result ->
          case model.page of
             PageModel.Register rm ->
                case result of
                   Ok userData ->
-                     (  { model 
-                        | page = PageModel.Register
-                           { rm
-                           | registerButtonDisabled = False
-                           , submitStatus = Just (Register.Success "Registered successfully")
-                           } 
+                     ( { model
+                        | page =
+                           PageModel.Register
+                              { rm
+                              | registerButtonDisabled = False
+                              , submitStatus =
+                                 Just
+                                    (Register.Success
+                                       (if userData.confirmed then
+                                           "Registered successfully"
+                                        else
+                                           "Registered. Please verify your email before uploading assets"
+                                       )
+                                    )
+                              }
                         , accountStatus = LoggedIn userData
-                        }
+                       }
                      , Cmd.batch
                         [ Ports.saveUserData userData
-                        , Nav.pushUrl model.key "/"
+                        , Nav.pushUrl model.key "/dashboard"
                         ]
                      )
 
                   Err err ->
                      ( { model
-                        | page = PageModel.Register
-                           { rm
-                           | registerButtonDisabled = False
-                           , submitStatus = Just (Register.Error (httpErrorToMessage err))
-                           }
-                        }
+                        | page =
+                           PageModel.Register
+                              { rm
+                              | registerButtonDisabled = False
+                              , submitStatus = Just (Register.Error (httpErrorToMessage err))
+                              }
+                       }
                      , Cmd.none
                      )
 
             _ ->
                ( model, Cmd.none )
 
-
       -- LOGIN
       UpdateLoginField field str ->
          case model.page of
             PageModel.Login lm ->
-               (  { model | page = PageModel.Login 
+               ( { model | page = PageModel.Login
                      ( case field of
                         Login.Username -> Login.validateField Login.Username { lm | username = str }
                         Login.Password -> Login.validateField Login.Password { lm | password = str }
-                     ) 
+                     )
                   }
                , Cmd.none
                )
-            _ -> ( model, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
 
       UpdateLoginSaveSession val ->
          case model.page of
-            PageModel.Login lm -> ( { model | page = PageModel.Login { lm | saveSession = val } }, Cmd.none )
-            _ -> ( model, Cmd.none )
+            PageModel.Login lm ->
+               ( { model | page = PageModel.Login { lm | saveSession = val } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
 
       SubmitLogin loginModel ->
-         let newModel = loginModel
-               |> Login.validateField Login.Username
-               |> Login.validateField Login.Password
-         in if List.isEmpty newModel.errors then
-            (  { model
-               | page = PageModel.Login
-                  { newModel
-                  | loginButtonDisabled = True
+         let
+            newModel =
+               loginModel
+                  |> Login.validateField Login.Username
+                  |> Login.validateField Login.Password
+         in
+            if List.isEmpty newModel.errors then
+               ( { model
+                  | page =
+                     PageModel.Login
+                        { newModel
+                        | loginButtonDisabled = True
+                        }
+                 }
+               , login
+                  { username = newModel.username
+                  , password = newModel.password
+                  , saveSession = newModel.saveSession
                   }
-               }
-            , login 
-               { username = newModel.username
-               , password = newModel.password
-               , saveSession = newModel.saveSession
-               }
-            )
-         else
-            ({ model | page = PageModel.Login newModel }, Cmd.none)
+               )
+            else
+               ( { model | page = PageModel.Login newModel }, Cmd.none )
 
       LoginResponseReceived result ->
          case model.page of
             PageModel.Login lm ->
                case result of
                   Ok userData ->
-                     (  { model 
-                        | page = PageModel.Login
-                           { lm
-                           | loginButtonDisabled = False
-                           , submitStatus = Just (Register.Success "Logged in successfully")
-                           } 
+                     ( { model
+                        | page =
+                           PageModel.Login
+                              { lm
+                              | loginButtonDisabled = False
+                              , submitStatus = Just (Register.Success "Logged in successfully")
+                              }
                         , accountStatus = LoggedIn userData
-                        }
+                       }
                      , Cmd.batch
                         [ Ports.saveUserData userData
-                        , Nav.pushUrl model.key "/"
+                        , Nav.pushUrl model.key "/dashboard"
                         ]
                      )
 
                   Err err ->
                      ( { model
-                        | page = PageModel.Login
-                           { lm
-                           | loginButtonDisabled = False
-                           , submitStatus = Just (Register.Error (httpErrorToMessage err))
-                           }
-                        }
+                        | page =
+                           PageModel.Login
+                              { lm
+                              | loginButtonDisabled = False
+                              , submitStatus = Just (Register.Error (httpErrorToMessage err))
+                              }
+                       }
                      , Cmd.none
                      )
 
             _ ->
                ( model, Cmd.none )
 
-      Logout -> 
+      Logout ->
          ( { model | accountStatus = LoggedOut }
          , Cmd.batch
             [ Ports.cleanUserData ()
@@ -209,6 +284,61 @@ update msg model =
          case model.page of
             PageModel.Dashboard dbm ->
                ( { model | page = PageModel.Dashboard { dbm | tab = tab } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      DashboardMyAssetsReceived result ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               case result of
+                  Ok assets ->
+                     ( { model | page = PageModel.Dashboard { dbm | myAssets = assets, loadingAssets = False } }, Cmd.none )
+
+                  Err err ->
+                     ( { model | page = PageModel.Dashboard { dbm | loadingAssets = False, listStatus = Just (Register.Error (httpErrorToMessage err)) } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      MeResponseReceived result ->
+         case ( model.accountStatus, result ) of
+            ( LoggedIn existing, Ok meUser ) ->
+               let
+                  mergedUser =
+                     { meUser | token = existing.token }
+
+                  nextModel =
+                     { model | accountStatus = LoggedIn mergedUser }
+               in
+               ( nextModel, Ports.saveUserData mergedUser )
+
+            _ ->
+               ( model, Cmd.none )
+
+      DashboardFavoriteAssetsReceived result ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               case result of
+                  Ok assets ->
+                     ( { model | page = PageModel.Dashboard { dbm | favoriteAssets = assets } }, Cmd.none )
+
+                  Err _ ->
+                     ( model, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      DashboardAnalyticsReceived result ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               case result of
+                  Ok analytics ->
+                     ( { model | page = PageModel.Dashboard { dbm | analytics = analytics, loadingAnalytics = False } }, Cmd.none )
+
+                  Err _ ->
+                     ( { model | page = PageModel.Dashboard { dbm | loadingAnalytics = False } }, Cmd.none )
+
             _ ->
                ( model, Cmd.none )
 
@@ -216,14 +346,15 @@ update msg model =
          case model.page of
             PageModel.Dashboard dbm ->
                ( { model
-                  | page = PageModel.Dashboard
-                     (Dashboard.validateUploadField Dashboard.AssetType
-                        { dbm
-                        | assetType = assetType
-                        , uploadStatus = Nothing
-                        }
-                     )
-                  }
+                  | page =
+                     PageModel.Dashboard
+                        (Dashboard.validateUploadField Dashboard.AssetType
+                           { dbm
+                           | assetType = assetType
+                           , uploadStatus = Nothing
+                           }
+                        )
+                 }
                , Cmd.none
                )
 
@@ -234,14 +365,15 @@ update msg model =
          case model.page of
             PageModel.Dashboard dbm ->
                ( { model
-                  | page = PageModel.Dashboard
-                     (Dashboard.validateUploadField Dashboard.Description
-                        { dbm
-                        | description = description
-                        , uploadStatus = Nothing
-                        }
-                     )
-                  }
+                  | page =
+                     PageModel.Dashboard
+                        (Dashboard.validateUploadField Dashboard.Description
+                           { dbm
+                           | description = description
+                           , uploadStatus = Nothing
+                           }
+                        )
+                 }
                , Cmd.none
                )
 
@@ -262,14 +394,15 @@ update msg model =
          case model.page of
             PageModel.Dashboard dbm ->
                ( { model
-                  | page = PageModel.Dashboard
-                     (Dashboard.validateUploadField Dashboard.AssetFile
-                        { dbm
-                        | assetFile = Just assetFile
-                        , uploadStatus = Nothing
-                        }
-                     )
-                  }
+                  | page =
+                     PageModel.Dashboard
+                        (Dashboard.validateUploadField Dashboard.AssetFile
+                           { dbm
+                           | assetFile = Just assetFile
+                           , uploadStatus = Nothing
+                           }
+                        )
+                 }
                , Cmd.none
                )
 
@@ -280,14 +413,15 @@ update msg model =
          case model.page of
             PageModel.Dashboard dbm ->
                ( { model
-                  | page = PageModel.Dashboard
-                     (Dashboard.validateUploadField Dashboard.ThumbnailFile
-                        { dbm
-                        | thumbnailFile = Just thumbnailFile
-                        , uploadStatus = Nothing
-                        }
-                     )
-                  }
+                  | page =
+                     PageModel.Dashboard
+                        (Dashboard.validateUploadField Dashboard.ThumbnailFile
+                           { dbm
+                           | thumbnailFile = Just thumbnailFile
+                           , uploadStatus = Nothing
+                           }
+                        )
+                 }
                , Cmd.none
                )
 
@@ -305,39 +439,52 @@ update msg model =
                         |> Dashboard.validateUploadField Dashboard.ThumbnailFile
                         |> Dashboard.validateUploadField Dashboard.Description
                in
-               if List.isEmpty validatedModel.uploadErrors then
-                  case ( model.accountStatus, validatedModel.assetFile ) of
-                     ( LoggedIn userData, Just assetFile ) ->
-                        ( { model
-                           | page = PageModel.Dashboard
-                              { validatedModel
-                              | uploadButtonDisabled = True
-                              }
-                           }
-                        , uploadAsset
-                           { assetType = validatedModel.assetType
-                           , description = String.trim validatedModel.description
-                           , tags = validatedModel.tags
-                           , token = userData.token
-                           , assetFile = assetFile
-                           , thumbnailFile = validatedModel.thumbnailFile
-                           }
-                        )
+                  if List.isEmpty validatedModel.uploadErrors then
+                     case ( model.accountStatus, validatedModel.assetFile ) of
+                        ( LoggedIn userData, Just assetFile ) ->
+                           if userData.confirmed then
+                              ( { model
+                                 | page =
+                                    PageModel.Dashboard
+                                       { validatedModel
+                                       | uploadButtonDisabled = True
+                                       }
+                                }
+                              , uploadAsset
+                                 { assetType = validatedModel.assetType
+                                 , description = String.trim validatedModel.description
+                                 , tags = validatedModel.tags
+                                 , token = userData.token
+                                 , assetFile = assetFile
+                                 , thumbnailFile = validatedModel.thumbnailFile
+                                 }
+                              )
+                           else
+                              ( { model
+                                 | page =
+                                    PageModel.Dashboard
+                                       { validatedModel
+                                       | uploadStatus = Just (Register.Error "Confirm your email before uploading")
+                                       }
+                                }
+                              , Cmd.none
+                              )
 
-                     ( LoggedOut, _ ) ->
-                        ( { model
-                           | page = PageModel.Dashboard
-                              { validatedModel
-                              | uploadStatus = Just (Register.Error "You must be logged in")
-                              }
-                           }
-                        , Cmd.none
-                        )
+                        ( LoggedOut, _ ) ->
+                           ( { model
+                              | page =
+                                 PageModel.Dashboard
+                                    { validatedModel
+                                    | uploadStatus = Just (Register.Error "You must be logged in")
+                                    }
+                             }
+                           , Cmd.none
+                           )
 
-                     ( _, Nothing ) ->
-                        ( { model | page = PageModel.Dashboard validatedModel }, Cmd.none )
-               else
-                  ( { model | page = PageModel.Dashboard validatedModel }, Cmd.none )
+                        ( _, Nothing ) ->
+                           ( { model | page = PageModel.Dashboard validatedModel }, Cmd.none )
+                  else
+                     ( { model | page = PageModel.Dashboard validatedModel }, Cmd.none )
 
             _ ->
                ( model, Cmd.none )
@@ -348,37 +495,340 @@ update msg model =
                case result of
                   Ok message ->
                      ( { model
-                        | page = PageModel.Dashboard
-                           { dbm
-                           | assetType = "Scene"
-                           , assetFile = Nothing
-                           , thumbnailFile = Nothing
-                           , description = ""
-                           , tags = ""
-                           , uploadButtonDisabled = False
-                           , uploadErrors = []
-                           , uploadStatus = Just (Register.Success message)
-                           }
-                        }
-                     , Cmd.none
+                        | page =
+                           PageModel.Dashboard
+                              { dbm
+                              | assetType = "Scene"
+                              , assetFile = Nothing
+                              , thumbnailFile = Nothing
+                              , description = ""
+                              , tags = ""
+                              , uploadButtonDisabled = False
+                              , uploadErrors = []
+                              , uploadStatus = Just (Register.Success message)
+                              }
+                       }
+                     , loadRouteData model
                      )
 
                   Err err ->
                      ( { model
-                        | page = PageModel.Dashboard
-                           { dbm
-                           | uploadButtonDisabled = False
-                           , uploadStatus = Just (Register.Error (httpErrorToMessage err))
-                           }
-                        }
+                        | page =
+                           PageModel.Dashboard
+                              { dbm
+                              | uploadButtonDisabled = False
+                              , uploadStatus = Just (Register.Error (httpErrorToMessage err))
+                              }
+                       }
                      , Cmd.none
                      )
 
             _ ->
                ( model, Cmd.none )
 
+      OpenDashboardEditAsset asset ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               ( { model
+                  | page =
+                     PageModel.Dashboard
+                        { dbm
+                        | editingAsset = Just asset
+                        , editAssetType = asset.assetType
+                        , editDescription = asset.description
+                        , editTags = Dashboard.tagsToString asset.tags
+                        , editStatus = Nothing
+                        }
+                 }
+               , Cmd.none
+               )
 
-      _ -> (model, Cmd.none)
+            _ ->
+               ( model, Cmd.none )
+
+      CloseDashboardEditAsset ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               ( { model
+                  | page =
+                     PageModel.Dashboard
+                        { dbm
+                        | editingAsset = Nothing
+                        , editStatus = Nothing
+                        }
+                 }
+               , Cmd.none
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateDashboardEditAssetType value ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               ( { model | page = PageModel.Dashboard { dbm | editAssetType = value, editStatus = Nothing } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateDashboardEditDescription value ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               ( { model | page = PageModel.Dashboard { dbm | editDescription = value, editStatus = Nothing } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateDashboardEditTags value ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               ( { model | page = PageModel.Dashboard { dbm | editTags = value, editStatus = Nothing } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      SubmitDashboardEditAsset ->
+         case ( model.accountStatus, model.page ) of
+            ( LoggedIn userData, PageModel.Dashboard dbm ) ->
+               case dbm.editingAsset of
+                  Just asset ->
+                     ( { model | page = PageModel.Dashboard { dbm | editButtonDisabled = True } }
+                     , updateAsset
+                        { id = asset.id
+                        , token = userData.token
+                        , assetType = dbm.editAssetType
+                        , description = String.trim dbm.editDescription
+                        , tags = dbm.editTags
+                        }
+                     )
+
+                  Nothing ->
+                     ( model, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      DashboardEditResponseReceived result ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               case result of
+                  Ok message ->
+                     ( { model
+                        | page =
+                           PageModel.Dashboard
+                              { dbm
+                              | editButtonDisabled = False
+                              , editStatus = Just (Register.Success message)
+                              }
+                       }
+                     , loadRouteData model
+                     )
+
+                  Err err ->
+                     ( { model
+                        | page =
+                           PageModel.Dashboard
+                              { dbm
+                              | editButtonDisabled = False
+                              , editStatus = Just (Register.Error (httpErrorToMessage err))
+                              }
+                       }
+                     , Cmd.none
+                     )
+
+            _ ->
+               ( model, Cmd.none )
+
+      SubmitDashboardDeleteAsset assetId ->
+         case model.accountStatus of
+            LoggedIn userData ->
+               ( model, deleteAsset { id = assetId, token = userData.token } )
+
+            LoggedOut ->
+               ( model, Cmd.none )
+
+      DashboardDeleteResponseReceived result ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               case result of
+                  Ok message ->
+                     ( { model
+                        | page =
+                           PageModel.Dashboard
+                              { dbm
+                              | listStatus = Just (Register.Success message)
+                              }
+                       }
+                     , loadRouteData model
+                     )
+
+                  Err err ->
+                     ( { model
+                        | page =
+                           PageModel.Dashboard
+                              { dbm
+                              | listStatus = Just (Register.Error (httpErrorToMessage err))
+                              }
+                       }
+                     , Cmd.none
+                     )
+
+            _ ->
+               ( model, Cmd.none )
+
+      -- ASSET PAGE
+      AssetPageAssetReceived result ->
+         case model.page of
+            PageModel.Asset assetModel ->
+               case result of
+                  Ok asset ->
+                     ( { model
+                        | page =
+                           PageModel.Asset
+                              { assetModel
+                              | loading = False
+                              , asset = Just asset
+                              }
+                       }
+                     , Cmd.none
+                     )
+
+                  Err err ->
+                     ( { model
+                        | page =
+                           PageModel.Asset
+                              { assetModel
+                              | loading = False
+                              , status = Just (Register.Error (httpErrorToMessage err))
+                              }
+                       }
+                     , Cmd.none
+                     )
+
+            _ ->
+               ( model, Cmd.none )
+
+      ToggleAssetFavorite assetId isFavorite ->
+         case model.accountStatus of
+            LoggedIn userData ->
+               ( model
+               , toggleFavoriteAsset
+                  { id = assetId
+                  , token = userData.token
+                  , isFavorite = isFavorite
+                  }
+               )
+
+            LoggedOut ->
+               ( model, Cmd.none )
+
+      AssetFavoriteResponseReceived result ->
+         case result of
+            Ok _ ->
+               ( model, loadRouteData model )
+
+            Err err ->
+               case model.page of
+                  PageModel.Asset assetModel ->
+                     ( { model
+                        | page = PageModel.Asset { assetModel | status = Just (Register.Error (httpErrorToMessage err)) }
+                       }
+                     , Cmd.none
+                     )
+
+                  _ ->
+                     ( model, Cmd.none )
+
+      UpdateAssetReportReason reason ->
+         case model.page of
+            PageModel.Asset assetModel ->
+               ( { model
+                  | page =
+                     PageModel.Asset
+                        { assetModel
+                        | reportReason = reason
+                        , status = Nothing
+                        }
+                 }
+               , Cmd.none
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      SubmitAssetReport assetId ->
+         case ( model.accountStatus, model.page ) of
+            ( LoggedIn userData, PageModel.Asset assetModel ) ->
+               ( model
+               , reportAsset
+                  { id = assetId
+                  , token = userData.token
+                  , reason =
+                     if String.trim assetModel.reportReason == "" then
+                        "Inappropriate content"
+                     else
+                        String.trim assetModel.reportReason
+                  }
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      AssetReportResponseReceived result ->
+         case model.page of
+            PageModel.Asset assetModel ->
+               case result of
+                  Ok message ->
+                     ( { model
+                        | page =
+                           PageModel.Asset
+                              { assetModel
+                              | status = Just (Register.Success message)
+                              , reportReason = ""
+                              }
+                       }
+                     , Cmd.none
+                     )
+
+                  Err err ->
+                     ( { model
+                        | page =
+                           PageModel.Asset
+                              { assetModel
+                              | status = Just (Register.Error (httpErrorToMessage err))
+                              }
+                       }
+                     , Cmd.none
+                     )
+
+            _ ->
+               ( model, Cmd.none )
+
+      _ ->
+         ( model, Cmd.none )
+
+
+loadRouteData : Model -> Cmd Msg
+loadRouteData model =
+   case model.route of
+      Route.Dashboard ->
+         case model.accountStatus of
+            LoggedIn _ ->
+               Task.perform identity (Task.succeed LoadDashboardData)
+
+            LoggedOut ->
+               Cmd.none
+
+      Route.Asset assetId ->
+         case model.accountStatus of
+            LoggedIn userData ->
+               getAssetById { id = assetId, token = Just userData.token }
+
+            LoggedOut ->
+               getAssetById { id = assetId, token = Nothing }
+
+      _ ->
+         Cmd.none
 
 
 shouldRedirectAuthenticated : AccountStatus -> Route -> Bool
@@ -430,7 +880,7 @@ httpErrorToMessage err =
          if status == 409 then
             "Username or email already exists"
          else
-            "Registration failed"
+            "Request failed"
 
       Http.BadBody message ->
          if String.trim message == "" then

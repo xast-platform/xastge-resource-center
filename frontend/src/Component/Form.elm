@@ -52,6 +52,22 @@ submitButton lab msg dis =
          [ text lab ]
       ]
 
+cancelButton : String -> msg -> Bool -> Html msg
+cancelButton lab msg dis = 
+   div [ class "d-flex justify-content-center mb-3" ]
+      [ button 
+         [ class "btn btn-outline-danger px-5"
+         , type_ "button"
+         , onClick msg
+         , disabled dis
+         , classList 
+            [ ("btn-smooth", True)
+            , ("is-disabled", dis)
+            ]
+         ] 
+         [ text lab ]
+      ]
+
 switch : String -> Bool -> (Bool -> msg) -> Html msg
 switch lab val onCheckMsg = 
    div [ class "form-check form-switch mb-3" ]

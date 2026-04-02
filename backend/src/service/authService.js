@@ -1,6 +1,45 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const userRepo = require("../repository/userRepository");
+const emailService = require("./emailService");
+
+const VERIFICATION_TTL_MS = 1000 * 60 * 60 * 24;
+
+function toPublicUser(user) {
+   const userObject = user.toObject ? user.toObject() : user;
+   const { password, verificationToken, verificationTokenExpiresAt, ...safeUser } = userObject;
+   return safeUser;
+}
+
+function createVerificationToken() {
+   return crypto.randomBytes(24).toString("hex");
+}
+
+function verificationUrl(token) {
+   const baseUrl = process.env.PUBLIC_BACKEND_URL || "http://localhost:3000";
+   return `${baseUrl}/api/auth/verify-email?token=${token}`;
+}
+
+async function notifyVerificationLink(email, token) {
+   const url = verificationUrl(token);
+
+   try {
+      const result = await emailService.sendVerificationEmail(email, url);
+
+      if (result.sent) {
+         console.log(`[verify-email] sent to ${email}`);
+         return { sent: true, mode: "smtp" };
+      }
+
+      console.log(`[verify-email] fallback for ${email}: ${url}`);
+      return { sent: false, mode: "console", reason: result.reason };
+   } catch (err) {
+      console.error("[verify-email] mail send failed", err);
+      console.log(`[verify-email] fallback for ${email}: ${url}`);
+      return { sent: false, mode: "console", reason: "mail send failed" };
+   }
+}
 
 function buildAuthResponse(user, saveSession = false) {
    const token = jwt.sign(
@@ -9,8 +48,7 @@ function buildAuthResponse(user, saveSession = false) {
       { expiresIn: saveSession ? "30d" : "30m" },
    );
 
-   const userObject = user.toObject ? user.toObject() : user;
-   const { password, ...safeUser } = userObject;
+   const safeUser = toPublicUser(user);
 
    return { user: safeUser, token };
 }
@@ -45,13 +83,28 @@ async function register({ username, email, password, saveSession = false }) {
    }
 
    const hashed = await bcrypt.hash(password, 10);
+   const token = createVerificationToken();
+   const expiresAt = new Date(Date.now() + VERIFICATION_TTL_MS);
+
    const user = await userRepo.createUser({
       username, 
       email: normalizedEmail, 
       password: hashed,
+      verificationToken: token,
+      verificationTokenExpiresAt: expiresAt,
    });
 
-   return buildAuthResponse(user, saveSession);
+   const verificationDelivery = await notifyVerificationLink(normalizedEmail, token);
+
+   const verificationMessage = verificationDelivery.sent
+      ? "Verification email sent"
+      : "Verification link generated in server logs (SMTP is disabled or not configured)";
+
+   return {
+      ...buildAuthResponse(user, saveSession),
+      verificationRequired: !user.confirmed,
+      verificationMessage,
+   };
 }
 
 async function login({ username, password, saveSession = false }) {
@@ -68,4 +121,44 @@ async function login({ username, password, saveSession = false }) {
    return buildAuthResponse(user, saveSession);
 }
 
-module.exports = { register, login }
+async function verifyEmail(token) {
+   if (!token || token.trim() === "") {
+      const err = new Error("Verification token is required");
+      err.status = 400;
+      throw err;
+   }
+
+   const user = await userRepo.findByVerificationToken(token.trim());
+
+   if (!user) {
+      const err = new Error("Verification token is invalid");
+      err.status = 400;
+      throw err;
+   }
+
+   if (user.confirmed) {
+      return { message: "Email already confirmed" };
+   }
+
+   if (!user.verificationTokenExpiresAt || user.verificationTokenExpiresAt.getTime() < Date.now()) {
+      const err = new Error("Verification token has expired");
+      err.status = 400;
+      throw err;
+   }
+
+   await userRepo.markAsConfirmed(user._id);
+   return { message: "Email confirmed successfully" };
+}
+
+async function getMe(userId) {
+   const user = await userRepo.findById(userId);
+   if (!user) {
+      const err = new Error("User not found");
+      err.status = 404;
+      throw err;
+   }
+
+   return { user: toPublicUser(user) };
+}
+
+module.exports = { register, login, verifyEmail, getMe };

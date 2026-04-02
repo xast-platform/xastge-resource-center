@@ -1,9 +1,11 @@
 module Model exposing (..)
 
 import Browser.Navigation as Nav
-import Event exposing (Msg)
+import Event exposing (Msg(..))
 import Url exposing (Url)
+import Task
 import Api.Backend exposing (Backend(..))
+import Api.Backend as Backend
 import Model.Route exposing (Route)
 import Model.Route exposing (parseUrl)
 import Model.Route as Route
@@ -15,6 +17,7 @@ import Model.AccountStatus exposing (UserData)
 
 type alias Flags =
    { userData : Maybe UserData
+   , backend : Maybe String
    }
 
 type alias Model = 
@@ -56,9 +59,25 @@ init flags url key =
 
             _ ->
                False
+
+      pageLoadCmd =
+         case route of
+            Route.Dashboard ->
+               LoadDashboardData |> Task.succeed |> Task.perform identity
+
+            Route.Asset assetId ->
+               LoadAssetPage assetId |> Task.succeed |> Task.perform identity
+
+            _ ->
+               Cmd.none
+
+      initialBackend =
+         flags.backend
+            |> Maybe.map Backend.fromString
+            |> Maybe.withDefault Rest
    in
    (  { key = key 
-      , backend = Rest
+      , backend = initialBackend
       , route = route
       , page = PageModel.fromRoute route
       , accountStatus = accountStatus
@@ -68,5 +87,5 @@ init flags url key =
      else if redirectToLogin then
         Nav.replaceUrl key "/login"
      else
-        Cmd.none
+        pageLoadCmd
    )

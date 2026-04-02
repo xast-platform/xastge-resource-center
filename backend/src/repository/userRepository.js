@@ -15,8 +15,62 @@ function createUser(data) {
    return user.save();
 }
 
+function findById(id) {
+   return User.findById(id);
+}
+
+function findByVerificationToken(token) {
+   return User.findOne({ verificationToken: token });
+}
+
+function markAsConfirmed(id) {
+   return User.findByIdAndUpdate(
+      id,
+      {
+         $set: { confirmed: true },
+         $unset: { verificationToken: "", verificationTokenExpiresAt: "" },
+      },
+      { new: true },
+   );
+}
+
+function updateVerificationToken(id, verificationToken, verificationTokenExpiresAt) {
+   return User.findByIdAndUpdate(
+      id,
+      {
+         $set: {
+            verificationToken,
+            verificationTokenExpiresAt,
+         },
+      },
+      { new: true },
+   );
+}
+
+function addFavorite(userId, assetId) {
+   return User.findByIdAndUpdate(
+      userId,
+      { $addToSet: { favorites: assetId } },
+      { new: true },
+   );
+}
+
+function removeFavorite(userId, assetId) {
+   return User.findByIdAndUpdate(
+      userId,
+      { $pull: { favorites: assetId } },
+      { new: true },
+   );
+}
+
 module.exports = {
    findByUsername,
    findByUsernameOrEmail,
-   createUser
+   createUser,
+   findById,
+   findByVerificationToken,
+   markAsConfirmed,
+   updateVerificationToken,
+   addFavorite,
+   removeFavorite,
 };

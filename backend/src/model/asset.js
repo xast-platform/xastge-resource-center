@@ -16,6 +16,9 @@ const AssetSchema = new mongoose.Schema(
       thumbnailUrl: { type: String, default: null },
       thumbnailType: { type: String, default: null },
       thumbnailSize: { type: Number, default: null },
+      favoriteCount: { type: Number, default: 0 },
+      downloadCount: { type: Number, default: 0 },
+      lastDownloadedAt: { type: Date, default: null },
    },
    { timestamps: true },
 );

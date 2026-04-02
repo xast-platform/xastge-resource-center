@@ -9,6 +9,7 @@ type Route
    | Login
    | Register
    | Dashboard
+   | Asset String
    | NotFound String
 
 routeParser : Parser (Route -> a) a
@@ -18,6 +19,7 @@ routeParser = oneOf
    , map Register (s "register")
    , map About (s "about")
    , map Dashboard (s "dashboard")
+   , map Asset (s "asset" </> Url.Parser.string)
    ]
 
 parseUrl : Url.Url -> Route
@@ -33,3 +35,4 @@ getTitle route = case route of
    Register -> "Register | XastGE Resource Center"
    Login -> "Login | XastGE Resource Center"
    Dashboard -> "Dashboard | XastGE Resource Center"
+   Asset _ -> "Asset | XastGE Resource Center"

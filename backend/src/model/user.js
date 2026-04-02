@@ -4,6 +4,9 @@ const UserSchema = new mongoose.Schema({
    username: { type: String, required: true, unique: true, trim: true },
    email: { type: String, required: true, unique: true, trim: true, lowercase: true },
    confirmed: { type: Boolean, default: false },
+   verificationToken: { type: String, default: null, index: true },
+   verificationTokenExpiresAt: { type: Date, default: null },
+   favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: "Asset" }],
    password: String, // Hashed
    role: { type: String, default: "user" },
 });

@@ -71,9 +71,9 @@ navigation backend links status =
 apiModeToggler : Backend -> Html Msg
 apiModeToggler backend = 
    li [ class "nav-item dropdown" ]
-      [ a
-         [ class "nav-link dropdown-toggle d-flex align-items-center text-light"
-         , href "#"
+      [ button
+         [ class "nav-link dropdown-toggle d-flex align-items-center text-light bg-transparent border-0"
+         , type_ "button"
          , attribute "data-bs-toggle" "dropdown"
          , attribute "aria-expanded" "false"
          ]
@@ -118,9 +118,9 @@ loggedOutView =
 loggedInView : msg -> String -> Html msg
 loggedInView logoutEvent username = 
    li [ class "nav-item dropdown ms-lg-auto" ]
-      [ a
-         [ class "nav-link dropdown-toggle d-flex align-items-center text-light"
-         , href "#"
+      [ button
+         [ class "nav-link dropdown-toggle d-flex align-items-center text-light bg-transparent border-0"
+         , type_ "button"
          , attribute "role" "button"
          , attribute "data-bs-toggle" "dropdown"
          , attribute "aria-expanded" "false"
@@ -133,9 +133,9 @@ loggedInView logoutEvent username =
             [ a [ class "dropdown-item", href "/dashboard" ] [ text "Dashboard" ]
             ]
          , li []
-            [ a 
-               [ class "dropdown-item text-danger"
-               , href "/"
+            [ button
+               [ class "dropdown-item text-danger w-100 text-start"
+               , type_ "button"
                , onClick logoutEvent 
                ] 
                [ text "Logout" ]
