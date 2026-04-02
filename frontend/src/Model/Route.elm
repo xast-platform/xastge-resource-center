@@ -5,6 +5,7 @@ import Url
 
 type Route
    = Home
+   | Browse
    | About
    | Login
    | Register
@@ -15,6 +16,7 @@ type Route
 routeParser : Parser (Route -> a) a
 routeParser = oneOf
    [ map Home top
+   , map Browse (s "browse")
    , map Login (s "login")
    , map Register (s "register")
    , map About (s "about")
@@ -30,6 +32,7 @@ parseUrl url =
 getTitle : Route -> String
 getTitle route = case route of
    Home -> "XastGE Resource Center"
+   Browse -> "Browse | XastGE Resource Center"
    About -> "About | XastGE Resource Center"
    NotFound _ -> "Page not found | XastGE Resource Center"
    Register -> "Register | XastGE Resource Center"

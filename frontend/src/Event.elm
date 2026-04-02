@@ -25,6 +25,21 @@ type Msg
    | RegisterResponseReceived (Result Http.Error UserData)
    | UpdateRegisterField RegisterField String
    | UpdateRegisterSaveSession Bool
+   -- Home
+   | LoadHomeData
+   | UpdateHomeQuickSearch String
+   | SubmitHomeQuickSearch
+   | HomeLatestAssetsReceived (Result Http.Error (List Asset))
+   -- Browse
+   | LoadBrowseData
+   | UpdateBrowseName String
+   | UpdateBrowseType String
+   | UpdateBrowseTag String
+   | UpdateBrowseAuthor String
+   | UpdateBrowseAll String
+   | SubmitBrowseSearch
+   | SubmitBrowseLoadMore
+   | BrowseAssetsReceived (Result Http.Error (List Asset))
    -- Dashboard
    | SelectDashboardTab DashboardTab
    | UpdateDashboardAssetType String

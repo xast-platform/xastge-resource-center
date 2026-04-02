@@ -14,8 +14,9 @@ import Model.Page.RegisterModel as Register
 import Model.Page.LoginModel as Login
 import Model.Page.DashboardModel as Dashboard
 import Model.Page.AssetModel as AssetModel
+import Model.Page.BrowseModel as BrowseModel
 import Model.AccountStatus exposing (AccountStatus(..))
-import Api.Rest exposing (login, register, uploadAsset, getAssets, getFavoriteAssets, getAssetById, toggleFavoriteAsset, reportAsset, updateAsset, deleteAsset, getDownloadAnalytics, getMe)
+import Api.Rest exposing (login, register, uploadAsset, getAssets, getFavoriteAssets, getAssetById, toggleFavoriteAsset, reportAsset, updateAsset, deleteAsset, getDownloadAnalytics, getMe, getLatestAssets, getBrowseAssets)
 import Api.Backend as Backend
 import Api.Ports as Ports
 
@@ -26,10 +27,21 @@ update msg model =
       UrlChange url ->
          let
             newRoute = parseUrl url
+            nextPage =
+               case newRoute of
+                  Route.Browse ->
+                     let
+                        browseModel = BrowseModel.empty
+                     in
+                     PageModel.Browse { browseModel | all = getQueryParam "q" url.query }
+
+                  _ ->
+                     PageModel.fromRoute newRoute
+
             nextModel =
                { model
                | route = newRoute
-               , page = PageModel.fromRoute newRoute
+               , page = nextPage
                }
          in
             ( nextModel
@@ -51,6 +63,223 @@ update msg model =
 
       SetBackend backend ->
          ( { model | backend = backend }, Ports.saveBackend (Backend.toString backend) )
+
+      LoadHomeData ->
+         case model.page of
+            PageModel.Home hm ->
+               let
+                  token =
+                     case model.accountStatus of
+                        LoggedIn userData ->
+                           Just userData.token
+
+                        LoggedOut ->
+                           Nothing
+               in
+               ( { model | page = PageModel.Home { hm | loadingLatest = True, status = Nothing } }
+               , getLatestAssets token
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateHomeQuickSearch value ->
+         case model.page of
+            PageModel.Home hm ->
+               ( { model | page = PageModel.Home { hm | quickSearch = value } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      SubmitHomeQuickSearch ->
+         case model.page of
+            PageModel.Home hm ->
+               ( model, Nav.pushUrl model.key ("/browse?q=" ++ Url.percentEncode hm.quickSearch) )
+
+            _ ->
+               ( model, Cmd.none )
+
+      HomeLatestAssetsReceived result ->
+         case model.page of
+            PageModel.Home hm ->
+               case result of
+                  Ok assets ->
+                     ( { model | page = PageModel.Home { hm | latestAssets = assets, loadingLatest = False } }, Cmd.none )
+
+                  Err err ->
+                     ( { model | page = PageModel.Home { hm | loadingLatest = False, status = Just (Register.Error (httpErrorToMessage err)) } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      LoadBrowseData ->
+         case model.page of
+            PageModel.Browse bm ->
+               let
+                  token =
+                     case model.accountStatus of
+                        LoggedIn userData ->
+                           Just userData.token
+
+                        LoggedOut ->
+                           Nothing
+               in
+               ( { model
+                  | page =
+                     PageModel.Browse
+                        { bm
+                        | loading = True
+                        , loadingMore = False
+                        , page = 1
+                        , hasMore = False
+                        , status = Nothing
+                        }
+                 }
+               , getBrowseAssets
+                  { token = token
+                  , name = bm.name
+                  , assetType = bm.assetType
+                  , tag = bm.tag
+                  , author = bm.author
+                  , all = bm.all
+                  , page = 1
+                  , limit = bm.pageSize
+                  }
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateBrowseName value ->
+         case model.page of
+            PageModel.Browse bm ->
+               ( { model | page = PageModel.Browse { bm | name = value } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateBrowseType value ->
+         case model.page of
+            PageModel.Browse bm ->
+               ( { model | page = PageModel.Browse { bm | assetType = value } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateBrowseTag value ->
+         case model.page of
+            PageModel.Browse bm ->
+               ( { model | page = PageModel.Browse { bm | tag = value } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateBrowseAuthor value ->
+         case model.page of
+            PageModel.Browse bm ->
+               ( { model | page = PageModel.Browse { bm | author = value } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateBrowseAll value ->
+         case model.page of
+            PageModel.Browse bm ->
+               ( { model | page = PageModel.Browse { bm | all = value } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      SubmitBrowseSearch ->
+         case model.page of
+            PageModel.Browse _ ->
+               ( model, Task.perform identity (Task.succeed LoadBrowseData) )
+
+            _ ->
+               ( model, Cmd.none )
+
+      SubmitBrowseLoadMore ->
+         case model.page of
+            PageModel.Browse bm ->
+               if bm.loading || bm.loadingMore || not bm.hasMore then
+                  ( model, Cmd.none )
+               else
+                  let
+                     token =
+                        case model.accountStatus of
+                           LoggedIn userData ->
+                              Just userData.token
+
+                           LoggedOut ->
+                              Nothing
+
+                     nextPage = bm.page + 1
+                  in
+                  ( { model | page = PageModel.Browse { bm | loadingMore = True, status = Nothing } }
+                  , getBrowseAssets
+                     { token = token
+                     , name = bm.name
+                     , assetType = bm.assetType
+                     , tag = bm.tag
+                     , author = bm.author
+                     , all = bm.all
+                     , page = nextPage
+                     , limit = bm.pageSize
+                     }
+                  )
+
+            _ ->
+               ( model, Cmd.none )
+
+      BrowseAssetsReceived result ->
+         case model.page of
+            PageModel.Browse bm ->
+               case result of
+                  Ok assets ->
+                     if bm.loadingMore then
+                        ( { model
+                           | page =
+                              PageModel.Browse
+                                 { bm
+                                 | assets = bm.assets ++ assets
+                                 , loading = False
+                                 , loadingMore = False
+                                 , page = bm.page + 1
+                                 , hasMore = List.length assets == bm.pageSize
+                                 }
+                          }
+                        , Cmd.none
+                        )
+                     else
+                        ( { model
+                           | page =
+                              PageModel.Browse
+                                 { bm
+                                 | assets = assets
+                                 , loading = False
+                                 , loadingMore = False
+                                 , page = 1
+                                 , hasMore = List.length assets == bm.pageSize
+                                 }
+                          }
+                        , Cmd.none
+                        )
+
+                  Err err ->
+                     ( { model
+                        | page =
+                           PageModel.Browse
+                              { bm
+                              | loading = False
+                              , loadingMore = False
+                              , status = Just (Register.Error (httpErrorToMessage err))
+                              }
+                       }
+                     , Cmd.none
+                     )
+
+            _ ->
+               ( model, Cmd.none )
 
       LoadDashboardData ->
          case ( model.accountStatus, model.page ) of
@@ -811,6 +1040,12 @@ update msg model =
 loadRouteData : Model -> Cmd Msg
 loadRouteData model =
    case model.route of
+      Route.Home ->
+         Task.perform identity (Task.succeed LoadHomeData)
+
+      Route.Browse ->
+         Task.perform identity (Task.succeed LoadBrowseData)
+
       Route.Dashboard ->
          case model.accountStatus of
             LoggedIn _ ->
@@ -887,3 +1122,34 @@ httpErrorToMessage err =
             "Unexpected response from server"
          else
             message
+
+
+getQueryParam : String -> Maybe String -> String
+getQueryParam key maybeQuery =
+   case maybeQuery of
+      Nothing ->
+         ""
+
+      Just query ->
+         query
+            |> String.split "&"
+            |> List.filterMap
+               (\part ->
+                  case String.split "=" part of
+                     [ currentKey, rawValue ] ->
+                        if currentKey == key then
+                           Url.percentDecode rawValue
+                        else
+                           Nothing
+
+                     [ currentKey ] ->
+                        if currentKey == key then
+                           Just ""
+                        else
+                           Nothing
+
+                     _ ->
+                        Nothing
+               )
+            |> List.head
+            |> Maybe.withDefault ""

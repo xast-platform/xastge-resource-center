@@ -5,18 +5,43 @@ function createAsset(data) {
    return asset.save();
 }
 
-function listAssets({ ownerId, favoriteIds, limit = 60 }) {
+function listAssets({ ownerId, ownerIds, favoriteIds, name, type, tag, text, limit = 60, skip = 0 }) {
    const query = {};
 
    if (ownerId) {
       query.ownerId = ownerId;
    }
 
+   if (Array.isArray(ownerIds)) {
+      query.ownerId = { $in: ownerIds };
+   }
+
    if (Array.isArray(favoriteIds)) {
       query._id = { $in: favoriteIds };
    }
 
-   return Asset.find(query).sort({ createdAt: -1 }).limit(limit);
+   if (name) {
+      query.fileName = name;
+   }
+
+   if (type) {
+      query.assetType = type;
+   }
+
+   if (tag) {
+      query.tags = tag;
+   }
+
+   if (text) {
+      query.$or = [
+         { fileName: text },
+         { description: text },
+         { assetType: text },
+         { tags: text },
+      ];
+   }
+
+   return Asset.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit);
 }
 
 function findById(assetId) {

@@ -3,6 +3,7 @@ module Model.Asset exposing (..)
 type alias Asset =
    { id : String
    , ownerId : String
+   , authorName : String
    , assetType : String
    , description : String
    , tags : List String

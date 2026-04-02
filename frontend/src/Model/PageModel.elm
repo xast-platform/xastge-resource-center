@@ -11,9 +11,13 @@ import Model.Page.DashboardModel exposing (DashboardModel)
 import Model.Page.DashboardModel as DashboardModel
 import Model.Page.AssetModel exposing (AssetModel)
 import Model.Page.AssetModel as AssetModel
+import Model.Page.BrowseModel exposing (BrowseModel)
+import Model.Page.BrowseModel as BrowseModel
+import Model.Page.HomeModel as HomeModel
 
 type PageModel 
    = Home HomeModel 
+   | Browse BrowseModel
    | About
    | Login LoginModel
    | Register RegisterModel
@@ -24,7 +28,9 @@ type PageModel
 fromRoute : Route -> PageModel
 fromRoute route = case route of
    Route.Home -> 
-      Home {}
+      Home HomeModel.empty
+   Route.Browse ->
+      Browse BrowseModel.empty
    Route.About -> 
       About
    Route.Login -> 

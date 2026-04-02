@@ -6,10 +6,13 @@ import Html exposing (..)
 import Component.Navbar as Navbar
 import Model.PageModel exposing (PageModel(..))
 import Component.Page.HomeView as HomeView
+import Component.Page.BrowseView as BrowseView
 import Component.Page.LoginView as LoginView
 import Component.Page.RegisterView as RegisterView
 import Component.Page.DashboardView as DashboardView
 import Component.Page.AssetView as AssetView
+import Component.Page.AboutView as AboutView
+import Component.Page.NotFoundView as NotFoundView
 import Model.AccountStatus exposing (AccountStatus(..))
 
 view : Model -> List (Html Msg)
@@ -20,6 +23,7 @@ view model =
       , brand = "XastGE Resource Center"
       , links = 
          [ ("Home", "/")
+         , ("Browse", "/browse")
          , ("About", "/about")
          ]
       , accountStatus = model.accountStatus
@@ -29,6 +33,12 @@ view model =
    , case model.page of
       Home home -> 
          HomeView.view home
+
+      Browse browse ->
+         BrowseView.view browse
+
+      About ->
+         AboutView.view
 
       Login login -> 
          LoginView.view login
@@ -44,5 +54,6 @@ view model =
       Asset assetModel ->
          AssetView.view assetModel model.accountStatus
 
-      _ -> text "ERROR"
+      NotFound path ->
+         NotFoundView.view path
    ]

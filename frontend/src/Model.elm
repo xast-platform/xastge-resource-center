@@ -11,6 +11,7 @@ import Model.Route exposing (parseUrl)
 import Model.Route as Route
 import Model.PageModel as PageModel
 import Model.PageModel exposing (PageModel)
+import Model.Page.BrowseModel as BrowseModel
 import Model.AccountStatus exposing (AccountStatus)
 import Model.AccountStatus exposing (AccountStatus(..))
 import Model.AccountStatus exposing (UserData)
@@ -62,6 +63,12 @@ init flags url key =
 
       pageLoadCmd =
          case route of
+            Route.Home ->
+               LoadHomeData |> Task.succeed |> Task.perform identity
+
+            Route.Browse ->
+               LoadBrowseData |> Task.succeed |> Task.perform identity
+
             Route.Dashboard ->
                LoadDashboardData |> Task.succeed |> Task.perform identity
 
@@ -75,11 +82,22 @@ init flags url key =
          flags.backend
             |> Maybe.map Backend.fromString
             |> Maybe.withDefault Rest
+
+      initialPage =
+         case route of
+            Route.Browse ->
+               let
+                  browseModel = BrowseModel.empty
+               in
+               PageModel.Browse { browseModel | all = getQueryParam "q" url.query }
+
+            _ ->
+               PageModel.fromRoute route
    in
    (  { key = key 
       , backend = initialBackend
       , route = route
-      , page = PageModel.fromRoute route
+      , page = initialPage
       , accountStatus = accountStatus
       } 
    , if redirectToHome then
@@ -89,3 +107,34 @@ init flags url key =
      else
         pageLoadCmd
    )
+
+
+getQueryParam : String -> Maybe String -> String
+getQueryParam key maybeQuery =
+   case maybeQuery of
+      Nothing ->
+         ""
+
+      Just query ->
+         query
+            |> String.split "&"
+            |> List.filterMap
+               (\part ->
+                  case String.split "=" part of
+                     [ currentKey, rawValue ] ->
+                        if currentKey == key then
+                           Url.percentDecode rawValue
+                        else
+                           Nothing
+
+                     [ currentKey ] ->
+                        if currentKey == key then
+                           Just ""
+                        else
+                           Nothing
+
+                     _ ->
+                        Nothing
+               )
+            |> List.head
+            |> Maybe.withDefault ""

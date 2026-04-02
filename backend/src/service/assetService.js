@@ -29,6 +29,19 @@ function parseTags(tagsValue) {
       .filter(tag => tag.length > 0);
 }
 
+function escapeRegex(value) {
+   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function toContainsRegex(value) {
+   const safeValue = (value || "").trim();
+   if (!safeValue) {
+      return null;
+   }
+
+   return new RegExp(escapeRegex(safeValue), "i");
+}
+
 function getLowerName(file) {
    return (file?.originalname || "").toLowerCase();
 }
@@ -136,7 +149,7 @@ async function requireConfirmedUser(userId) {
    return user;
 }
 
-function mapAsset(asset, favoriteIdsSet) {
+function mapAsset(asset, favoriteIdsSet, authorName = "") {
    const id = String(asset._id);
 
    return {
@@ -148,6 +161,7 @@ function mapAsset(asset, favoriteIdsSet) {
       fileName: asset.fileName,
       fileUrl: asset.fileUrl,
       thumbnailUrl: asset.thumbnailUrl,
+      authorName,
       favoriteCount: asset.favoriteCount || 0,
       downloadCount: asset.downloadCount || 0,
       isFavorite: favoriteIdsSet ? favoriteIdsSet.has(id) : false,
@@ -255,9 +269,12 @@ async function uploadAsset(req) {
 }
 
 async function listAssets(req) {
-   const { mine, favorites } = req.query;
+   const { mine, favorites, name, type, tag, author, q, limit, page } = req.query;
    const mineOnly = mine === "true";
    const onlyFavorites = favorites === "true";
+   const safeLimit = Math.max(1, Math.min(Number(limit) || 60, 100));
+   const safePage = Math.max(1, Number(page) || 1);
+   const safeSkip = (safePage - 1) * safeLimit;
 
    let currentUser = null;
 
@@ -271,16 +288,56 @@ async function listAssets(req) {
       throw error;
    }
 
+   const nameRegex = toContainsRegex(name);
+   const typeRegex = toContainsRegex(type);
+   const tagRegex = toContainsRegex(tag);
+   const textRegex = toContainsRegex(q);
+   const authorRegex = toContainsRegex(author);
+
+   let ownerIds = null;
+   if (authorRegex) {
+      const matchedUsers = await userRepository.findByUsernameLike(authorRegex);
+      ownerIds = matchedUsers.map((user) => user._id);
+
+      if (ownerIds.length === 0) {
+         return { assets: [] };
+      }
+   }
+
    const assets = await assetRepository.listAssets({
       ownerId: mineOnly && currentUser ? currentUser._id : null,
+      ownerIds,
       favoriteIds: onlyFavorites && currentUser ? currentUser.favorites : null,
+      name: nameRegex,
+      type: typeRegex,
+      tag: tagRegex,
+      text: textRegex,
+      limit: safeLimit,
+      skip: safeSkip,
    });
+
+   const ownerIdList =
+      assets
+         .map((asset) => String(asset.ownerId))
+         .filter((id, index, arr) => arr.indexOf(id) === index);
+
+   const owners = ownerIdList.length > 0
+      ? await userRepository.findByIds(ownerIdList)
+      : [];
+
+   const ownerNameById = new Map(
+      owners.map((owner) => [String(owner._id), owner.username || ""]) 
+   );
 
    const favoriteIdsSet = currentUser
       ? new Set((currentUser.favorites || []).map((assetId) => String(assetId)))
       : null;
 
-   return { assets: assets.map((asset) => mapAsset(asset, favoriteIdsSet)) };
+   return {
+      assets: assets.map((asset) =>
+         mapAsset(asset, favoriteIdsSet, ownerNameById.get(String(asset.ownerId)) || "")
+      )
+   };
 }
 
 async function getAssetById(assetId, userId) {
@@ -289,11 +346,13 @@ async function getAssetById(assetId, userId) {
       userId ? userRepository.findById(userId) : Promise.resolve(null),
    ]);
 
+   const owner = await userRepository.findById(asset.ownerId);
+
    const favoriteIdsSet = currentUser
       ? new Set((currentUser.favorites || []).map((id) => String(id)))
       : null;
 
-   return { asset: mapAsset(asset, favoriteIdsSet) };
+   return { asset: mapAsset(asset, favoriteIdsSet, owner ? owner.username : "") };
 }
 
 async function updateAsset(req) {

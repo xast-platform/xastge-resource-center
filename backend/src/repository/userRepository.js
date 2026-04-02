@@ -19,6 +19,14 @@ function findById(id) {
    return User.findById(id);
 }
 
+function findByIds(ids) {
+   return User.find({ _id: { $in: ids } });
+}
+
+function findByUsernameLike(usernameRegex) {
+   return User.find({ username: usernameRegex });
+}
+
 function findByVerificationToken(token) {
    return User.findOne({ verificationToken: token });
 }
@@ -68,6 +76,8 @@ module.exports = {
    findByUsernameOrEmail,
    createUser,
    findById,
+   findByIds,
+   findByUsernameLike,
    findByVerificationToken,
    markAsConfirmed,
    updateVerificationToken,

@@ -57,6 +57,37 @@ body {
   background-attachment: fixed;
 }
 
+.home-quick-search {
+  background: linear-gradient(120deg, rgba(13, 202, 240, 0.05), rgba(255, 255, 255, 0.02));
+}
+
+.about-surface,
+.not-found-surface {
+  background:
+    radial-gradient(circle at top right, rgba(13, 202, 240, 0.15), transparent 45%),
+    radial-gradient(circle at bottom left, rgba(255, 193, 7, 0.1), transparent 40%),
+    rgba(20, 20, 24, 0.9);
+}
+
+svg {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.icon-text-center {
+  display: inline-flex;
+  align-items: center;
+}
+
+.icon-text-center .lucide {
+  flex-shrink: 0;
+}
+
+.home-hero-icon {
+  position: relative;
+  top: 2px;
+}
+
 .dashboard-shell {
   height: auto;
   overflow: visible;

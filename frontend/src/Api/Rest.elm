@@ -8,6 +8,7 @@ import Api.Config exposing (backendUrl)
 import Json.Encode as Encode
 import Model.AccountStatus exposing (UserData)
 import Model.Asset exposing (Asset, AssetAnalytics)
+import Url
 
 -- Registration
 type alias RegisterRequest =
@@ -281,6 +282,65 @@ getFavoriteAssets req =
       , tracker = Nothing
       }
 
+type alias BrowseAssetsRequest =
+   { token : Maybe String
+   , name : String
+   , assetType : String
+   , tag : String
+   , author : String
+   , all : String
+   , page : Int
+   , limit : Int
+   }
+
+getLatestAssets : Maybe String -> Cmd Msg
+getLatestAssets token =
+   Http.request
+      { method = "GET"
+      , headers = authHeaders token
+      , url = backendUrl ++ "/assets?limit=12"
+      , body = Http.emptyBody
+      , expect = Http.expectStringResponse HomeLatestAssetsReceived assetListResolver
+      , timeout = Nothing
+      , tracker = Nothing
+      }
+
+getBrowseAssets : BrowseAssetsRequest -> Cmd Msg
+getBrowseAssets req =
+   let
+      queryParams =
+         [ ( "name", req.name )
+         , ( "type", req.assetType )
+         , ( "tag", req.tag )
+         , ( "author", req.author )
+         , ( "q", req.all )
+         ]
+            |> List.filter (
+               \(_, value) ->
+                  String.trim value /= ""
+            )
+            |> List.map (
+               \(key, value) ->
+                  key ++ "=" ++ Url.percentEncode value
+            )
+
+      limitParam = "limit=" ++ String.fromInt req.limit
+
+      pageParam = "page=" ++ String.fromInt req.page
+
+      queryString =
+         String.join "&" (limitParam :: pageParam :: queryParams)
+   in
+   Http.request
+      { method = "GET"
+      , headers = authHeaders req.token
+      , url = backendUrl ++ "/assets?" ++ queryString
+      , body = Http.emptyBody
+      , expect = Http.expectStringResponse BrowseAssetsReceived assetListResolver
+      , timeout = Nothing
+      , tracker = Nothing
+      }
+
 type alias GetAssetByIdRequest =
    { id : String
    , token : Maybe String
@@ -415,6 +475,7 @@ assetDecoder =
    Decode.succeed Asset
       |> andMap (Decode.field "id" Decode.string)
       |> andMap (Decode.oneOf [ Decode.field "ownerId" Decode.string, Decode.succeed "" ])
+      |> andMap (Decode.oneOf [ Decode.field "authorName" Decode.string, Decode.succeed "" ])
       |> andMap (Decode.field "assetType" Decode.string)
       |> andMap (Decode.field "description" Decode.string)
       |> andMap (Decode.field "tags" (Decode.list Decode.string))
