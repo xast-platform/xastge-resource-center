@@ -1,3 +1,5 @@
+scalar Upload
+
 type User {
    id: ID!
    username: String!
@@ -19,6 +21,15 @@ type AuthPayload {
 
 type MessagePayload {
    message: String!
+}
+
+type DownloadPayload {
+   url: String!
+}
+
+type UploadAssetPayload {
+   message: String!
+   asset: Asset!
 }
 
 type Asset {
@@ -56,6 +67,7 @@ type AssetAnalyticsPayload {
 
 type Query {
    me: UserPayload!
+   verifyEmail(token: String!): MessagePayload!
    listAssets(
       mine: Boolean
       favorites: Boolean
@@ -69,12 +81,14 @@ type Query {
    ): AssetListPayload!
    latestAssets(limit: Int): AssetListPayload!
    asset(id: ID!): AssetPayload!
+   downloadAsset(id: ID!): DownloadPayload!
    downloadAnalytics: AssetAnalyticsPayload!
 }
 
 type Mutation {
    register(username: String!, email: String!, password: String!, saveSession: Boolean): AuthPayload!
    login(username: String!, password: String!, saveSession: Boolean): AuthPayload!
+   uploadAsset(assetType: String!, description: String!, tags: String, assetFile: Upload!, thumbnailFile: Upload): UploadAssetPayload!
    updateUsername(username: String!, password: String!): UserPayload!
    updatePassword(currentPassword: String!, newPassword: String!): MessagePayload!
    deleteAccount(password: String!): MessagePayload!

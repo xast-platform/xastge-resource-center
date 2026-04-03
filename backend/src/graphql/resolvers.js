@@ -1,6 +1,38 @@
 const authService = require("../service/authService");
 const assetService = require("../service/assetService");
 
+function streamToBuffer(stream) {
+   return new Promise((resolve, reject) => {
+      const chunks = [];
+
+      stream.on("data", (chunk) => chunks.push(chunk));
+      stream.on("end", () => resolve(Buffer.concat(chunks)));
+      stream.on("error", reject);
+   });
+}
+
+async function toServiceFile(uploadPromise) {
+   const upload = await uploadPromise;
+   const resolvedUpload = upload && upload.promise ? await upload.promise : upload;
+   const fileUpload = resolvedUpload && resolvedUpload.file ? resolvedUpload.file : resolvedUpload;
+
+   if (!fileUpload || typeof fileUpload.createReadStream !== "function") {
+      const error = new Error("Invalid upload payload");
+      error.status = 400;
+      throw error;
+   }
+
+   const stream = fileUpload.createReadStream();
+   const buffer = await streamToBuffer(stream);
+
+   return {
+      originalname: fileUpload.filename,
+      mimetype: fileUpload.mimetype,
+      size: buffer.length,
+      buffer,
+   };
+}
+
 function requireAuthUser(context) {
    if (!context || !context.user || !context.user.id) {
       const error = new Error("Unauthorized");
@@ -29,9 +61,35 @@ module.exports = {
       return authService.login({ username, password, saveSession });
    },
 
+   uploadAsset: async ({ assetType, description, tags = "", assetFile, thumbnailFile = null }, context) => {
+      const user = requireAuthUser(context);
+
+      const mainFile = await toServiceFile(assetFile);
+      const thumb = thumbnailFile ? await toServiceFile(thumbnailFile) : null;
+
+      const req = {
+         user,
+         body: {
+            assetType,
+            description,
+            tags,
+         },
+         files: {
+            assetFile: [ mainFile ],
+            thumbnailFile: thumb ? [ thumb ] : undefined,
+         },
+      };
+
+      return assetService.uploadAsset(req);
+   },
+
    me: async (_args, context) => {
       const user = requireAuthUser(context);
       return authService.getMe(user.id);
+   },
+
+   verifyEmail: async ({ token }) => {
+      return authService.verifyEmail(token);
    },
 
    updateUsername: async ({ username, password }, context) => {
@@ -84,6 +142,10 @@ module.exports = {
 
    asset: async ({ id }, context) => {
       return assetService.getAssetById(id, context.user ? context.user.id : null);
+   },
+
+   downloadAsset: async ({ id }) => {
+      return assetService.downloadAsset(id);
    },
 
    updateAsset: async ({ id, assetType, description, tags }, context) => {

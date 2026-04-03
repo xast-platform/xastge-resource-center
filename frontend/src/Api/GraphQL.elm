@@ -327,7 +327,62 @@ getDownloadAnalytics req =
    in
    graphqlRequest (Just req.token) query (Decode.at [ "downloadAnalytics", "analytics" ] (Decode.list Rest.analyticsDecoder)) DashboardAnalyticsReceived
 
--- Upload is currently routed through REST because Elm uses multipart file uploads
+-- Upload via GraphQL multipart request
 uploadAsset : Rest.UploadAssetRequest -> Cmd Msg
 uploadAsset req =
-   Rest.uploadAsset req
+   let
+      operationsJson =
+         Encode.object
+            [ ( "query"
+              , Encode.string
+                  "mutation($assetType: String!, $description: String!, $tags: String, $assetFile: Upload!, $thumbnailFile: Upload) { uploadAsset(assetType: $assetType, description: $description, tags: $tags, assetFile: $assetFile, thumbnailFile: $thumbnailFile) { message } }"
+              )
+            , ( "variables"
+              , Encode.object
+                  [ ( "assetType", Encode.string req.assetType )
+                  , ( "description", Encode.string req.description )
+                  , ( "tags", Encode.string req.tags )
+                  , ( "assetFile", Encode.null )
+                  , ( "thumbnailFile", Encode.null )
+                  ]
+              )
+            ]
+            |> Encode.encode 0
+
+      mapJson =
+         (case req.thumbnailFile of
+            Just _ ->
+               Encode.object
+                  [ ( "0", Encode.list Encode.string [ "variables.assetFile" ] )
+                  , ( "1", Encode.list Encode.string [ "variables.thumbnailFile" ] )
+                  ]
+
+            Nothing ->
+               Encode.object
+                  [ ( "0", Encode.list Encode.string [ "variables.assetFile" ] )
+                  ]
+         )
+            |> Encode.encode 0
+
+      parts =
+         [ Http.stringPart "operations" operationsJson
+         , Http.stringPart "map" mapJson
+         , Http.filePart "0" req.assetFile
+         ]
+            ++ (case req.thumbnailFile of
+                  Just thumbnail ->
+                     [ Http.filePart "1" thumbnail ]
+
+                  Nothing ->
+                     []
+               )
+   in
+   Http.request
+      { method = "POST"
+      , headers = [ Http.header "Authorization" ("Bearer " ++ req.token) ]
+      , url = graphqlUrl
+      , body = Http.multipartBody parts
+      , expect = Http.expectStringResponse DashboardUploadResponseReceived (graphqlResolver (Decode.at [ "uploadAsset", "message" ] Decode.string))
+      , timeout = Nothing
+      , tracker = Nothing
+      }

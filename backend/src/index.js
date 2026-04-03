@@ -20,6 +20,7 @@ const mongoose = require("mongoose");
 const { graphqlHTTP } = require("express-graphql");
 const session = require("express-session");
 const jwt = require("jsonwebtoken");
+const { graphqlUploadExpress } = require("graphql-upload");
 
 const authRoutes = require("./route/authRoutes");
 const assetRoutes = require("./route/assetRoutes");
@@ -41,6 +42,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/assets", assetRoutes);
 
 // ------- GraphQL -------
+app.use(graphqlUploadExpress({ maxFileSize: 25 * 1024 * 1024, maxFiles: 2 }));
+
 function readGraphqlUser(req) {
    const authorization = req.headers.authorization || "";
    const [scheme, rawToken] = authorization.split(" ");

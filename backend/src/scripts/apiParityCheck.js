@@ -69,6 +69,86 @@ async function gql(query, variables = {}, { token } = {}) {
    };
 }
 
+async function restDownloadUrl(assetId) {
+   const response = await fetch(`${baseUrl}/api/assets/${assetId}/download`, {
+      method: "GET",
+      redirect: "manual",
+   });
+
+   const location = response.headers.get("location") || "";
+
+   return {
+      ok: response.status === 302 && location !== "",
+      status: response.status,
+      location,
+   };
+}
+
+async function restUploadAsset(token, fileName) {
+   const formData = new FormData();
+   const bytes = new Uint8Array([80, 75, 3, 4, 20, 0, 0, 0]); // tiny zip-like header
+   const blob = new Blob([bytes], { type: "application/zip" });
+
+   formData.append("assetType", "Scene");
+   formData.append("description", "Parity upload asset description for GraphQL/REST check");
+   formData.append("tags", "parity,upload");
+   formData.append("assetFile", blob, fileName);
+
+   const response = await fetch(`${baseUrl}/api/assets/upload`, {
+      method: "POST",
+      headers: {
+         Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+   });
+
+   const data = await response.json();
+   return { ok: response.ok, status: response.status, data };
+}
+
+async function gqlUploadAsset(token, fileName) {
+   const bytes = new Uint8Array([80, 75, 3, 4, 20, 0, 0, 0]);
+   const blob = new Blob([bytes], { type: "application/zip" });
+
+   const operations = {
+      query: "mutation($assetType: String!, $description: String!, $tags: String, $assetFile: Upload!, $thumbnailFile: Upload) { uploadAsset(assetType: $assetType, description: $description, tags: $tags, assetFile: $assetFile, thumbnailFile: $thumbnailFile) { message asset { id } } }",
+      variables: {
+         assetType: "Scene",
+         description: "Parity upload asset description for GraphQL/REST check",
+         tags: "parity,upload",
+         assetFile: null,
+         thumbnailFile: null,
+      },
+   };
+
+   const map = {
+      0: ["variables.assetFile"],
+   };
+
+   const formData = new FormData();
+   formData.append("operations", JSON.stringify(operations));
+   formData.append("map", JSON.stringify(map));
+   formData.append("0", blob, fileName);
+
+   const response = await fetch(`${baseUrl}/graphql`, {
+      method: "POST",
+      headers: {
+         Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+   });
+
+   const payload = await response.json();
+   const hasErrors = Array.isArray(payload.errors) && payload.errors.length > 0;
+
+   return {
+      ok: response.ok && !hasErrors,
+      status: response.status,
+      data: payload.data || {},
+      errors: payload.errors || [],
+   };
+}
+
 function stableSortObject(value) {
    if (Array.isArray(value)) {
       return value.map(stableSortObject);
@@ -172,6 +252,29 @@ async function main() {
 
    const token = restLogin.data.token;
 
+   const restUpload = await restUploadAsset(token, "parity-rest-upload.zip");
+   assert(restUpload.ok, `REST upload failed (${restUpload.status})`);
+
+   const gqlUpload = await gqlUploadAsset(token, "parity-graphql-upload.zip");
+   assert(gqlUpload.ok, `GraphQL upload failed (${gqlUpload.status}) ${JSON.stringify(gqlUpload.errors)}`);
+
+   compareEqual(
+      "upload message",
+      { message: restUpload.data.message },
+      { message: gqlUpload.data.uploadAsset.message }
+   );
+
+   const restUploadId = restUpload.data.asset && restUpload.data.asset.id;
+   const gqlUploadId = gqlUpload.data.uploadAsset && gqlUpload.data.uploadAsset.asset && gqlUpload.data.uploadAsset.asset.id;
+
+   assert(restUploadId, "REST upload did not return created asset id");
+   assert(gqlUploadId, "GraphQL upload did not return created asset id");
+
+   await rest("DELETE", `/api/assets/${restUploadId}`, { token });
+   await rest("DELETE", `/api/assets/${gqlUploadId}`, { token });
+
+   console.log("PASS upload asset");
+
    const restMe = await rest("GET", "/api/auth/me", { token });
    assert(restMe.ok, `REST me failed (${restMe.status})`);
 
@@ -187,6 +290,26 @@ async function main() {
 
    assert(gqlMe.ok, `GraphQL me failed (${gqlMe.status}) ${JSON.stringify(gqlMe.errors)}`);
    compareEqual("me user payload", pickUser(restMe.data.user), pickUser(gqlMe.data.me.user));
+
+   const invalidToken = "parity-invalid-token";
+   const restVerify = await rest("GET", `/api/auth/verify-email?token=${encodeURIComponent(invalidToken)}`);
+   assert(!restVerify.ok, "REST verifyEmail with invalid token unexpectedly succeeded");
+
+   const gqlVerify = await gql(
+      `query VerifyEmail($token: String!) {
+         verifyEmail(token: $token) {
+            message
+         }
+      }`,
+      { token: invalidToken }
+   );
+
+   assert(!gqlVerify.ok, "GraphQL verifyEmail with invalid token unexpectedly succeeded");
+
+   const restVerifyMessage = String(restVerify.data.message || "").toLowerCase();
+   const gqlVerifyMessage = String((gqlVerify.errors[0] && gqlVerify.errors[0].message) || "").toLowerCase();
+   assert(restVerifyMessage == gqlVerifyMessage, `verify email error mismatch\nREST: ${restVerifyMessage}\nGQL : ${gqlVerifyMessage}`);
+   console.log("PASS verify email invalid token");
 
    const listQuery = "?mine=false&favorites=false&limit=20&page=1&type=Scene";
    const restList = await rest("GET", `/api/assets${listQuery}`, { token });
@@ -288,6 +411,25 @@ async function main() {
       "download analytics",
       normAnalytics(restAnalytics.data.analytics),
       normAnalytics(gqlAnalytics.data.downloadAnalytics && gqlAnalytics.data.downloadAnalytics.analytics)
+   );
+
+   const restDownload = await restDownloadUrl(candidateAsset.id);
+   assert(restDownload.ok, `REST download redirect failed (${restDownload.status})`);
+
+   const gqlDownload = await gql(
+      `query DownloadAsset($id: ID!) {
+         downloadAsset(id: $id) {
+            url
+         }
+      }`,
+      { id: candidateAsset.id }
+   );
+
+   assert(gqlDownload.ok, `GraphQL downloadAsset failed (${gqlDownload.status}) ${JSON.stringify(gqlDownload.errors)}`);
+   compareEqual(
+      "download asset url",
+      { url: restDownload.location },
+      { url: gqlDownload.data.downloadAsset.url }
    );
 
    console.log("\nAll parity checks passed");
