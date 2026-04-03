@@ -63,6 +63,19 @@ type Msg
    | DashboardEditResponseReceived (Result Http.Error String)
    | SubmitDashboardDeleteAsset String
    | DashboardDeleteResponseReceived (Result Http.Error String)
+   | UpdateDashboardSettingsUsername String
+   | UpdateDashboardSettingsUsernamePassword String
+   | SubmitDashboardSettingsUsername
+   | DashboardSettingsUsernameResponseReceived (Result Http.Error UserData)
+   | UpdateDashboardSettingsCurrentPassword String
+   | UpdateDashboardSettingsNewPassword String
+   | SubmitDashboardSettingsPassword
+   | DashboardSettingsPasswordResponseReceived (Result Http.Error String)
+   | OpenDashboardDeleteAccountModal
+   | CloseDashboardDeleteAccountModal
+   | UpdateDashboardDeletePassword String
+   | SubmitDashboardDeleteAccount
+   | DashboardAccountDeleteResponseReceived (Result Http.Error String)
    -- Asset page
    | LoadAssetPage String
    | AssetPageAssetReceived (Result Http.Error Asset)

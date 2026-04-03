@@ -19,6 +19,7 @@ view model =
          , value = model.username
          , onInput = UpdateLoginField Username
          , error = getUsernameError model.errors
+         , maxlength = Nothing
          }
       , Form.formInput
          { label = "Password"
@@ -26,6 +27,7 @@ view model =
          , value = model.password
          , onInput = UpdateLoginField Password
          , error = getPasswordError model.errors
+         , maxlength = Nothing
          }
       , Form.switch        "Save session" model.saveSession UpdateLoginSaveSession
       , Form.submitButton  "Login" (SubmitLogin model) model.loginButtonDisabled

@@ -71,6 +71,26 @@ function removeFavorite(userId, assetId) {
    );
 }
 
+function updateUsername(id, username) {
+   return User.findByIdAndUpdate(
+      id,
+      { $set: { username } },
+      { new: true },
+   );
+}
+
+function updatePassword(id, password) {
+   return User.findByIdAndUpdate(
+      id,
+      { $set: { password } },
+      { new: true },
+   );
+}
+
+function deleteById(id) {
+   return User.findByIdAndDelete(id);
+}
+
 module.exports = {
    findByUsername,
    findByUsernameOrEmail,
@@ -83,4 +103,7 @@ module.exports = {
    updateVerificationToken,
    addFavorite,
    removeFavorite,
+   updateUsername,
+   updatePassword,
+   deleteById,
 };

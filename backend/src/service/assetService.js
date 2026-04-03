@@ -96,7 +96,7 @@ function isScript(file) {
 }
 
 function isScene(file) {
-   return hasOneOfExtensions(file, [".ron", ".zip", ".rar", ".7z"]);
+   return hasOneOfExtensions(file, [".xsc", ".zip", ".rar", ".7z"]);
 }
 
 function validateAssetFileByType(assetType, file) {

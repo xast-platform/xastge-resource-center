@@ -23,10 +23,11 @@ view model userData =
             , ( Favorite, "Favorite", favoriteTab model )
             , ( Upload, "Upload", uploadTab model userData )
             , ( Analytics, "Analytics", analyticsTab model )
-            , ( Settings, "Settings", settingsTab userData )
+            , ( Settings, "Settings", settingsTab model userData )
             ]
          }
       , editModal model
+      , deleteAccountModal model
       ]
 
 homeTab : DashboardModel -> List (Html Msg)
@@ -109,14 +110,150 @@ analyticsTab model =
            ]
    ]
 
-settingsTab : UserData -> List (Html Msg)
-settingsTab userData =
-   [ p [] [ strong [] [ text "Email" ], text (" : " ++ userData.email) ]
-   , p []
-      [ strong [] [ text "Verification" ]
-      , text (if userData.confirmed then " : confirmed" else " : not confirmed")
+settingsTab : DashboardModel -> UserData -> List (Html Msg)
+settingsTab model userData =
+   [ Form.submitStatus model.settingsStatus
+   , subsection "Account"
+      [ div [ class "d-flex flex-column" ]
+         [ p [ class "text-light lead" ] [ strong [] [ text "Email" ], text (" : " ++ userData.email) ]
+         , p [ class "text-light lead" ] [ strong [] [ text "Role" ], text (" : " ++ userData.role) ]
+         , p [ class "text-light lead" ]
+            [ strong [] [ text "Verification" ]
+            , text (if userData.confirmed then " : confirmed" else " : not confirmed")
+            ]
+         ]
+      ]
+   , subsection "Change login"
+      [ let
+           trimmedUsername = String.trim model.settingsUsername
+           usernameLen = String.length trimmedUsername
+
+           usernameError =
+              if trimmedUsername == "" then
+                 Nothing
+              else if usernameLen < DashboardModel.usernameMinLength then
+                 Just ("Username must be at least " ++ String.fromInt DashboardModel.usernameMinLength ++ " characters")
+              else if usernameLen > DashboardModel.usernameMaxLength then
+                 Just ("Username cannot exceed " ++ String.fromInt DashboardModel.usernameMaxLength ++ " characters")
+              else
+                 Nothing
+
+           passwordError =
+              if String.trim model.settingsUsernamePassword == "" then
+                 Just "Current password is required"
+              else
+                 Nothing
+        in
+        div []
+           [ Form.formInput
+              { label = "New login"
+              , ty = "text"
+              , value = model.settingsUsername
+              , onInput = UpdateDashboardSettingsUsername
+              , error = usernameError
+              , maxlength = Just DashboardModel.usernameMaxLength
+              }
+           , Form.formInput
+              { label = "Confirm password"
+              , ty = "password"
+              , value = model.settingsUsernamePassword
+              , onInput = UpdateDashboardSettingsUsernamePassword
+              , error = passwordError
+              , maxlength = Nothing
+              }
+           , Form.submitButton "Save login" SubmitDashboardSettingsUsername model.settingsUsernameButtonDisabled
+           ]
+      ]
+   , subsection "Change password"
+      [ let
+           currentPasswordError =
+              if String.trim model.settingsCurrentPassword == "" then
+                 Just "Current password is required"
+              else
+                 Nothing
+
+           newPasswordError =
+              if String.trim model.settingsNewPassword == "" then
+                 Nothing
+              else if not (DashboardModel.isNewPasswordValid model.settingsNewPassword) then
+                 Just "New password must be at least 6 characters"
+              else
+                 Nothing
+        in
+        div []
+           [ Form.formInput
+              { label = "Current password"
+              , ty = "password"
+              , value = model.settingsCurrentPassword
+              , onInput = UpdateDashboardSettingsCurrentPassword
+              , error = currentPasswordError
+              , maxlength = Nothing
+              }
+           , Form.formInput
+              { label = "New password"
+              , ty = "password"
+              , value = model.settingsNewPassword
+              , onInput = UpdateDashboardSettingsNewPassword
+              , error = newPasswordError
+              , maxlength = Nothing
+              }
+           , Form.submitButton "Save password" SubmitDashboardSettingsPassword model.settingsPasswordButtonDisabled
+           ]
+      ]
+   , subsection "Danger zone"
+      [ button [ class "btn btn-outline-danger", type_ "button", onClick OpenDashboardDeleteAccountModal ] [ text "Delete account" ]
       ]
    ]
+
+deleteAccountModal : DashboardModel -> Html Msg
+deleteAccountModal model =
+   if model.showDeleteAccountModal then
+      div []
+         [ div
+            [ class "modal show d-block"
+            , attribute "tabindex" "-1"
+            , attribute "role" "dialog"
+            ]
+            [ div [ class "modal-dialog modal-dialog-centered" ]
+               [ div [ class "modal-content bg-dark text-white border border-secondary" ]
+                  [ div [ class "modal-header border-secondary" ]
+                     [ h5 [ class "modal-title" ] [ text "DELETE ACCOUNT" ]
+                     , button
+                        [ class "btn-close btn-close-white"
+                        , type_ "button"
+                        , onClick CloseDashboardDeleteAccountModal
+                        ]
+                        []
+                     ]
+                  , div [ class "modal-body" ]
+                     [ p [ class "text-danger" ] [ text "This action is permanent and cannot be undone" ]
+                     , let
+                          passwordError =
+                             if String.trim model.settingsDeletePassword == "" then
+                                Just "Password is required"
+                             else
+                                Nothing
+                       in
+                       Form.formInput
+                          { label = "Confirm your password"
+                          , ty = "password"
+                          , value = model.settingsDeletePassword
+                          , onInput = UpdateDashboardDeletePassword
+                          , error = passwordError
+                          , maxlength = Nothing
+                          }
+                     ]
+                  , div [ class "modal-footer border-secondary" ]
+                     [ Form.cancelButton "Cancel" CloseDashboardDeleteAccountModal False
+                     , Form.dangerSubmitButton "Delete forever" SubmitDashboardDeleteAccount model.settingsDeleteButtonDisabled
+                     ]
+                  ]
+               ]
+            ]
+         , div [ class "modal-backdrop show" ] []
+         ]
+   else
+      text ""
 
 uploadForm : DashboardModel -> Html Msg
 uploadForm model =
@@ -154,6 +291,7 @@ uploadForm model =
          , value = model.tags
          , onInput = UpdateDashboardTags
          , error = Nothing
+         , maxlength = Nothing
          }
       , Form.submitButton "Upload Asset" SubmitDashboardUpload model.uploadButtonDisabled
       ]
@@ -214,6 +352,7 @@ editForm model =
          , value = model.editTags
          , onInput = UpdateDashboardEditTags
          , error = Nothing
+         , maxlength = Nothing
          }
       , div [ class "d-flex gap-2" ]
          [ Form.submitButton "Save changes" SubmitDashboardEditAsset model.editButtonDisabled

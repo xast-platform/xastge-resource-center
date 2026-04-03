@@ -46,7 +46,7 @@ view model =
            else if List.isEmpty model.latestAssets then
               p [ class "text-secondary" ] [ text "No assets yet" ]
            else
-              div [ class "d-flex flex-wrap gap-3" ] (model.latestAssets |> List.map assetCard)
+              div [ class "d-flex flex-wrap justify-content-center gap-3" ] (model.latestAssets |> List.map assetCard)
          ]
       ]
 

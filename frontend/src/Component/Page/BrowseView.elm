@@ -27,7 +27,7 @@ view model =
            p [ class "text-secondary mt-3" ] [ text "No assets found for this query" ]
         else
            div []
-              [ div [ class "d-flex flex-wrap gap-3 mt-3" ] (model.assets |> List.map assetCard)
+              [ div [ class "d-flex flex-wrap gap-3 mt-3 justify-content-center" ] (model.assets |> List.map assetCard)
               , if model.hasMore then
                    div [ class "mt-4 d-flex justify-content-center" ]
                       [ button

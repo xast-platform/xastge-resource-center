@@ -16,7 +16,7 @@ import Model.Page.DashboardModel as Dashboard
 import Model.Page.AssetModel as AssetModel
 import Model.Page.BrowseModel as BrowseModel
 import Model.AccountStatus exposing (AccountStatus(..))
-import Api.Rest exposing (login, register, uploadAsset, getAssets, getFavoriteAssets, getAssetById, toggleFavoriteAsset, reportAsset, updateAsset, deleteAsset, getDownloadAnalytics, getMe, getLatestAssets, getBrowseAssets)
+import Api exposing (login, register, uploadAsset, getAssets, getFavoriteAssets, getAssetById, toggleFavoriteAsset, reportAsset, updateAsset, deleteAsset, getDownloadAnalytics, getMe, getLatestAssets, getBrowseAssets, updateAccountUsername, updateAccountPassword, deleteAccount)
 import Api.Backend as Backend
 import Api.Ports as Ports
 
@@ -77,7 +77,7 @@ update msg model =
                            Nothing
                in
                ( { model | page = PageModel.Home { hm | loadingLatest = True, status = Nothing } }
-               , getLatestAssets token
+               , getLatestAssets model.backend token
                )
 
             _ ->
@@ -135,7 +135,7 @@ update msg model =
                         , status = Nothing
                         }
                  }
-               , getBrowseAssets
+               , getBrowseAssets model.backend
                   { token = token
                   , name = bm.name
                   , assetType = bm.assetType
@@ -216,7 +216,7 @@ update msg model =
                      nextPage = bm.page + 1
                   in
                   ( { model | page = PageModel.Browse { bm | loadingMore = True, status = Nothing } }
-                  , getBrowseAssets
+                  , getBrowseAssets model.backend
                      { token = token
                      , name = bm.name
                      , assetType = bm.assetType
@@ -288,16 +288,17 @@ update msg model =
                   | page =
                      PageModel.Dashboard
                         { dbm
-                        | loadingAssets = True
+                        | settingsUsername = userData.username
+                        , loadingAssets = True
                         , loadingAnalytics = True
                         , listStatus = Nothing
                         }
                  }
                , Cmd.batch
-                  [ getMe userData.token
-                  , getAssets { token = Just userData.token, mine = True, favorites = False }
-                  , getFavoriteAssets { token = Just userData.token, mine = False, favorites = True }
-                  , getDownloadAnalytics { token = userData.token }
+                  [ getMe model.backend userData.token
+                  , getAssets model.backend { token = Just userData.token, mine = True, favorites = False }
+                  , getFavoriteAssets model.backend { token = Just userData.token, mine = False, favorites = True }
+                  , getDownloadAnalytics model.backend { token = userData.token }
                   ]
                )
 
@@ -318,7 +319,7 @@ update msg model =
                { model | page = PageModel.Asset (AssetModel.init assetId) }
          in
             ( nextModel
-            , getAssetById { id = assetId, token = token }
+            , getAssetById model.backend { id = assetId, token = token }
             )
 
       -- REGISTER
@@ -364,7 +365,7 @@ update msg model =
                         | registerButtonDisabled = True
                         }
                  }
-               , register
+               , register model.backend
                   { username = newModel.username
                   , email = newModel.email
                   , password = newModel.password
@@ -456,7 +457,7 @@ update msg model =
                         | loginButtonDisabled = True
                         }
                  }
-               , login
+               , login model.backend
                   { username = newModel.username
                   , password = newModel.password
                   , saveSession = newModel.saveSession
@@ -679,7 +680,7 @@ update msg model =
                                        | uploadButtonDisabled = True
                                        }
                                 }
-                              , uploadAsset
+                              , uploadAsset model.backend
                                  { assetType = validatedModel.assetType
                                  , description = String.trim validatedModel.description
                                  , tags = validatedModel.tags
@@ -822,7 +823,7 @@ update msg model =
                case dbm.editingAsset of
                   Just asset ->
                      ( { model | page = PageModel.Dashboard { dbm | editButtonDisabled = True } }
-                     , updateAsset
+                     , updateAsset model.backend
                         { id = asset.id
                         , token = userData.token
                         , assetType = dbm.editAssetType
@@ -871,7 +872,7 @@ update msg model =
       SubmitDashboardDeleteAsset assetId ->
          case model.accountStatus of
             LoggedIn userData ->
-               ( model, deleteAsset { id = assetId, token = userData.token } )
+               ( model, deleteAsset model.backend { id = assetId, token = userData.token } )
 
             LoggedOut ->
                ( model, Cmd.none )
@@ -897,6 +898,257 @@ update msg model =
                            PageModel.Dashboard
                               { dbm
                               | listStatus = Just (Register.Error (httpErrorToMessage err))
+                              }
+                       }
+                     , Cmd.none
+                     )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateDashboardSettingsUsername value ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               let
+                  isValid = Dashboard.usernameChangeValid value dbm.settingsUsernamePassword
+               in
+               ( { model | page = PageModel.Dashboard { dbm | settingsUsername = value, settingsStatus = Nothing, settingsUsernameButtonDisabled = not isValid } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateDashboardSettingsUsernamePassword value ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               let
+                  isValid = Dashboard.usernameChangeValid dbm.settingsUsername value
+               in
+               ( { model | page = PageModel.Dashboard { dbm | settingsUsernamePassword = value, settingsStatus = Nothing, settingsUsernameButtonDisabled = not isValid } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      SubmitDashboardSettingsUsername ->
+         case ( model.accountStatus, model.page ) of
+            ( LoggedIn userData, PageModel.Dashboard dbm ) ->
+               ( { model
+                  | page =
+                     PageModel.Dashboard
+                        { dbm
+                        | settingsUsernameButtonDisabled = True
+                        , settingsStatus = Nothing
+                        }
+                 }
+               , updateAccountUsername model.backend
+                  { token = userData.token
+                  , username = String.trim dbm.settingsUsername
+                  , password = dbm.settingsUsernamePassword
+                  }
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      DashboardSettingsUsernameResponseReceived result ->
+         case ( model.accountStatus, model.page ) of
+            ( LoggedIn existing, PageModel.Dashboard dbm ) ->
+               case result of
+                  Ok updatedUser ->
+                     let
+                        mergedUser =
+                           { updatedUser | token = existing.token }
+                     in
+                     ( { model
+                        | accountStatus = LoggedIn mergedUser
+                        , page =
+                           PageModel.Dashboard
+                              { dbm
+                              | settingsUsername = mergedUser.username
+                              , settingsUsernamePassword = ""
+                              , settingsUsernameButtonDisabled = False
+                              , settingsStatus = Just (Register.Success "Login updated successfully")
+                              }
+                       }
+                     , Ports.saveUserData mergedUser
+                     )
+
+                  Err err ->
+                     ( { model
+                        | page =
+                           PageModel.Dashboard
+                              { dbm
+                              | settingsUsernameButtonDisabled = False
+                              , settingsStatus = Just (Register.Error (httpErrorToMessage err))
+                              }
+                       }
+                     , Cmd.none
+                     )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateDashboardSettingsCurrentPassword value ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               let
+                  isValid = Dashboard.passwordChangeValid value dbm.settingsNewPassword
+               in
+               ( { model | page = PageModel.Dashboard { dbm | settingsCurrentPassword = value, settingsStatus = Nothing, settingsPasswordButtonDisabled = not isValid } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateDashboardSettingsNewPassword value ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               let
+                  isValid = Dashboard.passwordChangeValid dbm.settingsCurrentPassword value
+               in
+               ( { model | page = PageModel.Dashboard { dbm | settingsNewPassword = value, settingsStatus = Nothing, settingsPasswordButtonDisabled = not isValid } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      SubmitDashboardSettingsPassword ->
+         case ( model.accountStatus, model.page ) of
+            ( LoggedIn userData, PageModel.Dashboard dbm ) ->
+               ( { model
+                  | page =
+                     PageModel.Dashboard
+                        { dbm
+                        | settingsPasswordButtonDisabled = True
+                        , settingsStatus = Nothing
+                        }
+                 }
+               , updateAccountPassword model.backend
+                  { token = userData.token
+                  , currentPassword = dbm.settingsCurrentPassword
+                  , newPassword = dbm.settingsNewPassword
+                  }
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      DashboardSettingsPasswordResponseReceived result ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               case result of
+                  Ok _ ->
+                     ( { model
+                        | page =
+                           PageModel.Dashboard
+                              { dbm
+                              | settingsCurrentPassword = ""
+                              , settingsNewPassword = ""
+                              , settingsPasswordButtonDisabled = False
+                              , settingsStatus = Just (Register.Success "Password updated successfully")
+                              }
+                       }
+                     , Cmd.none
+                     )
+
+                  Err err ->
+                     ( { model
+                        | page =
+                           PageModel.Dashboard
+                              { dbm
+                              | settingsPasswordButtonDisabled = False
+                              , settingsStatus = Just (Register.Error (httpErrorToMessage err))
+                              }
+                       }
+                     , Cmd.none
+                     )
+
+            _ ->
+               ( model, Cmd.none )
+
+      OpenDashboardDeleteAccountModal ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               ( { model
+                  | page =
+                     PageModel.Dashboard
+                        { dbm
+                        | showDeleteAccountModal = True
+                        , settingsDeletePassword = ""
+                        , settingsStatus = Nothing
+                        }
+                 }
+               , Cmd.none
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      CloseDashboardDeleteAccountModal ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               ( { model
+                  | page =
+                     PageModel.Dashboard
+                        { dbm
+                        | showDeleteAccountModal = False
+                        , settingsDeletePassword = ""
+                        , settingsDeleteButtonDisabled = False
+                        }
+                 }
+               , Cmd.none
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      UpdateDashboardDeletePassword value ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               let
+                  isValid = Dashboard.deletePasswordValid value
+               in
+               ( { model | page = PageModel.Dashboard { dbm | settingsDeletePassword = value, settingsStatus = Nothing, settingsDeleteButtonDisabled = not isValid } }, Cmd.none )
+
+            _ ->
+               ( model, Cmd.none )
+
+      SubmitDashboardDeleteAccount ->
+         case ( model.accountStatus, model.page ) of
+            ( LoggedIn userData, PageModel.Dashboard dbm ) ->
+               ( { model
+                  | page =
+                     PageModel.Dashboard
+                        { dbm
+                        | settingsDeleteButtonDisabled = True
+                        , settingsStatus = Nothing
+                        }
+                 }
+               , deleteAccount model.backend
+                  { token = userData.token
+                  , password = dbm.settingsDeletePassword
+                  }
+               )
+
+            _ ->
+               ( model, Cmd.none )
+
+      DashboardAccountDeleteResponseReceived result ->
+         case model.page of
+            PageModel.Dashboard dbm ->
+               case result of
+                  Ok _ ->
+                     ( { model | accountStatus = LoggedOut }
+                     , Cmd.batch
+                        [ Ports.cleanUserData ()
+                        , Nav.pushUrl model.key "/login"
+                        ]
+                     )
+
+                  Err err ->
+                     ( { model
+                        | page =
+                           PageModel.Dashboard
+                              { dbm
+                              | settingsDeleteButtonDisabled = False
+                              , settingsStatus = Just (Register.Error (httpErrorToMessage err))
                               }
                        }
                      , Cmd.none
@@ -941,7 +1193,7 @@ update msg model =
          case model.accountStatus of
             LoggedIn userData ->
                ( model
-               , toggleFavoriteAsset
+               , toggleFavoriteAsset model.backend
                   { id = assetId
                   , token = userData.token
                   , isFavorite = isFavorite
@@ -989,7 +1241,7 @@ update msg model =
          case ( model.accountStatus, model.page ) of
             ( LoggedIn userData, PageModel.Asset assetModel ) ->
                ( model
-               , reportAsset
+               , reportAsset model.backend
                   { id = assetId
                   , token = userData.token
                   , reason =
@@ -1057,10 +1309,10 @@ loadRouteData model =
       Route.Asset assetId ->
          case model.accountStatus of
             LoggedIn userData ->
-               getAssetById { id = assetId, token = Just userData.token }
+               getAssetById model.backend { id = assetId, token = Just userData.token }
 
             LoggedOut ->
-               getAssetById { id = assetId, token = Nothing }
+               getAssetById model.backend { id = assetId, token = Nothing }
 
       _ ->
          Cmd.none

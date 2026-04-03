@@ -26,6 +26,16 @@ type alias DashboardModel =
    , editTags : String
    , editButtonDisabled : Bool
    , editStatus : Maybe SubmitStatus
+   , settingsUsername : String
+   , settingsUsernamePassword : String
+   , settingsCurrentPassword : String
+   , settingsNewPassword : String
+   , settingsDeletePassword : String
+   , settingsUsernameButtonDisabled : Bool
+   , settingsPasswordButtonDisabled : Bool
+   , settingsDeleteButtonDisabled : Bool
+   , showDeleteAccountModal : Bool
+   , settingsStatus : Maybe SubmitStatus
    }
 
 type UploadFieldError
@@ -319,6 +329,40 @@ tagsFromString tags =
       |> List.map String.trim
       |> List.filter (\tag -> tag /= "")
 
+usernameMinLength : Int
+usernameMinLength = 3
+
+usernameMaxLength : Int
+usernameMaxLength = 32
+
+isUsernameValid : String -> Bool
+isUsernameValid username =
+   let
+      trimmed = String.trim username
+      len = String.length trimmed
+   in
+   len >= usernameMinLength && len <= usernameMaxLength
+
+isNewPasswordValid : String -> Bool
+isNewPasswordValid password =
+   String.length (String.trim password) >= 6
+
+isPasswordFieldValid : String -> Bool
+isPasswordFieldValid password =
+   String.trim password /= ""
+
+usernameChangeValid : String -> String -> Bool
+usernameChangeValid username confPassword =
+   isUsernameValid username && isPasswordFieldValid confPassword
+
+passwordChangeValid : String -> String -> Bool
+passwordChangeValid currentPassword newPassword =
+   isPasswordFieldValid currentPassword && isNewPasswordValid newPassword
+
+deletePasswordValid : String -> Bool
+deletePasswordValid password =
+   isPasswordFieldValid password
+
 tagsToString : List String -> String
 tagsToString tags =
    String.join ", " tags
@@ -346,4 +390,14 @@ empty =
    , editTags = ""
    , editButtonDisabled = False
    , editStatus = Nothing
+   , settingsUsername = ""
+   , settingsUsernamePassword = ""
+   , settingsCurrentPassword = ""
+   , settingsNewPassword = ""
+   , settingsDeletePassword = ""
+   , settingsUsernameButtonDisabled = False
+   , settingsPasswordButtonDisabled = False
+   , settingsDeleteButtonDisabled = False
+   , showDeleteAccountModal = False
+   , settingsStatus = Nothing
    }

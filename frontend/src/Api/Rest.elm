@@ -156,6 +156,71 @@ getMe token =
       , tracker = Nothing
       }
 
+type alias UpdateUsernameRequest =
+   { token : String
+   , username : String
+   , password : String
+   }
+
+updateAccountUsername : UpdateUsernameRequest -> Cmd Msg
+updateAccountUsername req =
+   Http.request
+      { method = "PATCH"
+      , headers = [ Http.header "Authorization" ("Bearer " ++ req.token) ]
+      , url = backendUrl ++ "/auth/username"
+      , body =
+         Http.jsonBody
+            (Encode.object
+               [ ( "username", Encode.string req.username )
+               , ( "password", Encode.string req.password )
+               ]
+            )
+      , expect = Http.expectStringResponse DashboardSettingsUsernameResponseReceived meResponseResolver
+      , timeout = Nothing
+      , tracker = Nothing
+      }
+
+type alias UpdatePasswordRequest =
+   { token : String
+   , currentPassword : String
+   , newPassword : String
+   }
+
+updateAccountPassword : UpdatePasswordRequest -> Cmd Msg
+updateAccountPassword req =
+   Http.request
+      { method = "PATCH"
+      , headers = [ Http.header "Authorization" ("Bearer " ++ req.token) ]
+      , url = backendUrl ++ "/auth/password"
+      , body =
+         Http.jsonBody
+            (Encode.object
+               [ ( "currentPassword", Encode.string req.currentPassword )
+               , ( "newPassword", Encode.string req.newPassword )
+               ]
+            )
+      , expect = Http.expectStringResponse DashboardSettingsPasswordResponseReceived backendMessageResolver
+      , timeout = Nothing
+      , tracker = Nothing
+      }
+
+type alias DeleteAccountRequest =
+   { token : String
+   , password : String
+   }
+
+deleteAccount : DeleteAccountRequest -> Cmd Msg
+deleteAccount req =
+   Http.request
+      { method = "DELETE"
+      , headers = [ Http.header "Authorization" ("Bearer " ++ req.token) ]
+      , url = backendUrl ++ "/auth/account"
+      , body = Http.jsonBody (Encode.object [ ( "password", Encode.string req.password ) ])
+      , expect = Http.expectStringResponse DashboardAccountDeleteResponseReceived backendMessageResolver
+      , timeout = Nothing
+      , tracker = Nothing
+      }
+
 meResponseResolver : Http.Response String -> Result Http.Error UserData
 meResponseResolver response =
    case response of

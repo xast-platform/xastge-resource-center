@@ -96,6 +96,14 @@ function getDownloadAnalyticsByType(ownerId) {
    return Asset.aggregate(pipeline);
 }
 
+function findByOwnerId(ownerId) {
+   return Asset.find({ ownerId });
+}
+
+function deleteByOwnerId(ownerId) {
+   return Asset.deleteMany({ ownerId });
+}
+
 module.exports = {
    createAsset,
    listAssets,
@@ -105,4 +113,6 @@ module.exports = {
    incrementFavoriteCount,
    incrementDownloadCount,
    getDownloadAnalyticsByType,
+   findByOwnerId,
+   deleteByOwnerId,
 };

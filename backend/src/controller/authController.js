@@ -36,4 +36,39 @@ async function me(req, res, next) {
    }
 }
 
-module.exports = { register, login, verifyEmail, me };
+async function updateUsername(req, res, next) {
+   try {
+      const result = await authService.updateUsername(req.user.id, req.body);
+      res.json(result);
+   } catch (err) {
+      next(err);
+   }
+}
+
+async function updatePassword(req, res, next) {
+   try {
+      const result = await authService.updatePassword(req.user.id, req.body);
+      res.json(result);
+   } catch (err) {
+      next(err);
+   }
+}
+
+async function deleteAccount(req, res, next) {
+   try {
+      const result = await authService.deleteAccount(req.user.id, req.body);
+      res.json(result);
+   } catch (err) {
+      next(err);
+   }
+}
+
+module.exports = {
+   register,
+   login,
+   verifyEmail,
+   me,
+   updateUsername,
+   updatePassword,
+   deleteAccount,
+};

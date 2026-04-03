@@ -2,14 +2,85 @@ type User {
    id: ID!
    username: String!
    email: String!
+   confirmed: Boolean!
+   role: String!
+}
+
+type UserPayload {
+   user: User!
 }
 
 type AuthPayload {
    token: String!
    user: User!
+   verificationRequired: Boolean
+   verificationMessage: String
+}
+
+type MessagePayload {
+   message: String!
+}
+
+type Asset {
+   id: ID!
+   ownerId: String
+   authorName: String
+   assetType: String!
+   description: String!
+   tags: [String!]!
+   fileName: String!
+   fileUrl: String!
+   thumbnailUrl: String
+   favoriteCount: Int!
+   downloadCount: Int!
+   isFavorite: Boolean!
+}
+
+type AssetPayload {
+   asset: Asset!
+}
+
+type AssetListPayload {
+   assets: [Asset!]!
+}
+
+type AssetAnalytics {
+   assetType: String!
+   totalDownloads: Int!
+   assetsCount: Int!
+}
+
+type AssetAnalyticsPayload {
+   analytics: [AssetAnalytics!]!
+}
+
+type Query {
+   me: UserPayload!
+   listAssets(
+      mine: Boolean
+      favorites: Boolean
+      name: String
+      type: String
+      tag: String
+      author: String
+      q: String
+      limit: Int
+      page: Int
+   ): AssetListPayload!
+   latestAssets(limit: Int): AssetListPayload!
+   asset(id: ID!): AssetPayload!
+   downloadAnalytics: AssetAnalyticsPayload!
 }
 
 type Mutation {
-   login(email: String!, password: String!): AuthPayload
-   register(username: String!, email: String!, password: String!): User
+   register(username: String!, email: String!, password: String!, saveSession: Boolean): AuthPayload!
+   login(username: String!, password: String!, saveSession: Boolean): AuthPayload!
+   updateUsername(username: String!, password: String!): UserPayload!
+   updatePassword(currentPassword: String!, newPassword: String!): MessagePayload!
+   deleteAccount(password: String!): MessagePayload!
+   updateAsset(id: ID!, assetType: String, description: String, tags: String): MessagePayload!
+   deleteAsset(id: ID!): MessagePayload!
+   favoriteAsset(id: ID!): MessagePayload!
+   unfavoriteAsset(id: ID!): MessagePayload!
+   reportAsset(id: ID!, reason: String!, message: String): MessagePayload!
 }

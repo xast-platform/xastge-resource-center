@@ -40,7 +40,23 @@ submitButton : String -> msg -> Bool -> Html msg
 submitButton lab msg dis = 
    div [ class "d-flex justify-content-center mb-3" ]
       [ button 
-         [ class "btn btn-info px-5"
+         [ class "btn btn-info px-4"
+         , type_ "button"
+         , onClick msg
+         , disabled dis
+         , classList 
+            [ ("btn-smooth", True)
+            , ("is-disabled", dis)
+            ]
+         ] 
+         [ text lab ]
+      ]
+
+dangerSubmitButton : String -> msg -> Bool -> Html msg
+dangerSubmitButton lab msg dis = 
+   div [ class "d-flex justify-content-center mb-3" ]
+      [ button 
+         [ class "btn btn-danger px-4"
          , type_ "button"
          , onClick msg
          , disabled dis
@@ -88,11 +104,18 @@ formInput props =
    div [ class "mb-3" ]
       ([ label [ class "form-label text-light" ] [ text props.label ]
       , input
-         [ class "form-control text-bg-dark border-secondary"
-         , type_ props.ty
-         , value props.value
-         , onInput props.onInput
-         ]
+         ([ class "form-control text-bg-dark border-secondary"
+          , type_ props.ty
+          , value props.value
+          , onInput props.onInput
+          ]
+            ++ case props.maxlength of
+                  Just max_val ->
+                     [ maxlength max_val ]
+
+                  Nothing ->
+                     []
+         )
          []
       ]
          ++ case props.error of
@@ -109,6 +132,7 @@ type alias FormInputProps msg =
    , value : String
    , onInput : (String -> msg)
    , error : Maybe String
+   , maxlength : Maybe Int
    }
 
 formTextarea : FormTextareaProps msg -> Html msg

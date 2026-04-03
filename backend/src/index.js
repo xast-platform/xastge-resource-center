@@ -19,6 +19,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const { graphqlHTTP } = require("express-graphql");
 const session = require("express-session");
+const jwt = require("jsonwebtoken");
 
 const authRoutes = require("./route/authRoutes");
 const assetRoutes = require("./route/assetRoutes");
@@ -40,11 +41,30 @@ app.use("/api/auth", authRoutes);
 app.use("/api/assets", assetRoutes);
 
 // ------- GraphQL -------
-app.use("/graphql", graphqlHTTP({
-   schema: schema,
-   resolvers, resolvers,
+function readGraphqlUser(req) {
+   const authorization = req.headers.authorization || "";
+   const [scheme, rawToken] = authorization.split(" ");
+   const token = (rawToken || "").trim();
+
+   if (scheme !== "Bearer" || !token) {
+      return null;
+   }
+
+   try {
+      return jwt.verify(token, "SECRET");
+   } catch (_err) {
+      return null;
+   }
+}
+
+app.use("/graphql", graphqlHTTP((req) => ({
+   schema,
+   rootValue: resolvers,
    graphiql: true,
-}));
+   context: {
+      user: readGraphqlUser(req),
+   },
+})));
 
 // ------- Middleware -------
 app.use((err, _req, res, _next) => {

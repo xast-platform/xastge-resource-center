@@ -18,6 +18,7 @@ view model =
          , value = model.username
          , onInput = UpdateRegisterField Username
          , error = getUsernameError model.errors
+         , maxlength = Nothing
          }
       , Form.formInput
          { label = "Email"
@@ -25,6 +26,7 @@ view model =
          , value = model.email
          , onInput = UpdateRegisterField Email
          , error = getEmailError model.errors
+         , maxlength = Nothing
          }
       , Form.formInput
          { label = "Password"
@@ -32,6 +34,7 @@ view model =
          , value = model.password
          , onInput = UpdateRegisterField Password
          , error = getPasswordError model.errors
+         , maxlength = Nothing
          }
       , Form.formInput
          { label = "Confirm password"
@@ -39,6 +42,7 @@ view model =
          , value = model.passwordAgain
          , onInput = UpdateRegisterField PasswordAgain
          , error = getPasswordAgainError model.errors
+         , maxlength = Nothing
          }
       , Form.switch        "Save session" model.saveSession UpdateRegisterSaveSession
       , Form.submitButton  "Register" (SubmitRegister model) model.registerButtonDisabled
