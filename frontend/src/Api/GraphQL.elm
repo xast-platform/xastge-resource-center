@@ -7,7 +7,6 @@ import Http
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Model.AccountStatus exposing (UserData)
-import Model.Asset exposing (Asset, AssetAnalytics)
 
 -- Shared GraphQL HTTP
 graphqlRequest : Maybe String -> String -> Decode.Decoder a -> (Result Http.Error a -> Msg) -> Cmd Msg

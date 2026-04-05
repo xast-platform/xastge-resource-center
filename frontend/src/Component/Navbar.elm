@@ -11,6 +11,7 @@ import Api.Backend exposing (Backend)
 import Api.Backend as Backend
 import Html.Events exposing (onClick)
 import Event exposing (Msg(..))
+import Component.Generic exposing (container)
 
 type alias NavbarProps =
    { icon : String 
@@ -23,7 +24,7 @@ type alias NavbarProps =
 view : NavbarProps -> Html Msg
 view props =
    nav [ class "navbar sticky-top navbar-expand-lg bg-dark navbar-dark" ]
-      [ div [ class "container" ]
+      [ container []
          [ branding props.icon props.brand
          , mobileToggler
          , navigation props.backend props.links props.accountStatus

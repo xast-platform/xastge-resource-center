@@ -9,6 +9,7 @@ import LucideIcons as LucideIcon
 import Svg.Attributes as Svg
 import Event exposing (Msg(..))
 import Component.Form as Form
+import Component.Generic exposing (container)
 
 view : HomeModel -> Html Msg
 view model =
@@ -17,43 +18,39 @@ view model =
          (LucideIcon.cuboidIcon [])
          "XastGE Game Assets"
          "Models, plugins, scripts and more"
-      , div [ class "container py-4" ]
-         [ div [ class "home-quick-search border border-secondary rounded p-3 mb-4" ]
-            [ h2 [ class "h4 text-light mb-3 icon-text-center" ]
-               [ LucideIcon.searchIcon [ Svg.class "me-2" ]
-               , text "Quick search"
-               ]
-            , div [ class "input-group" ]
-               [ input
-                  [ class "form-control text-bg-dark border-secondary"
-                  , type_ "text"
-                  , placeholder "Search latest assets by keyword"
-                  , value model.quickSearch
-                  , onInput UpdateHomeQuickSearch
-                  ]
-                  []
-               , button [ class "btn btn-info", type_ "button", onClick SubmitHomeQuickSearch ]
-                  [ text "Browse all" ]
-               ]
-            ]
-         , h2 [ class "text-light mb-3 icon-text-center" ]
-            [ LucideIcon.clock3Icon [ Svg.class "me-2" ]
-            , text "Latest added assets"
-            ]
+      , container [ class "py-4" ]
+         [ searchBar
+            { title = "Quick search"
+            , value = model.quickSearch
+            , onChange = UpdateHomeQuickSearch
+            , onSubmit = SubmitHomeQuickSearch
+            , submitLabel = "Browse all"
+            }
+         , latestAssets "Latest uploaded assets"
          , Form.submitStatus model.status
          , if model.loadingLatest then
               p [ class "text-secondary" ] [ text "Loading latest assets" ]
            else if List.isEmpty model.latestAssets then
               p [ class "text-secondary" ] [ text "No assets yet" ]
            else
-              div [ class "d-flex flex-wrap justify-content-center gap-3" ] (model.latestAssets |> List.map assetCard)
+              div [ class "d-flex flex-wrap justify-content-center gap-3" ] 
+               ( model.latestAssets 
+                  |> List.map assetCard
+               )
          ]
+      ]
+
+latestAssets : String -> Html msg
+latestAssets label = 
+   h2 [ class "text-light mb-3 icon-text-center" ]
+      [ LucideIcon.clock3Icon [ Svg.class "me-2" ]
+      , text label
       ]
 
 homeHeader : Html msg -> String -> String -> Html msg
 homeHeader icon title subtitle = 
    header [ class "header py-5" ]
-      [ div [ class "container px-4 px-lg-5 my-5" ]
+      [ container [ class "px-4 px-lg-5 my-5" ]
          [ div [ class "text-center text-light" ]
             [ h1 [ class "display-4 fw-bolder" ]
                [ span [ class "me-2 display-3 align-text-bottom home-hero-icon" ] [ icon ]
@@ -65,6 +62,33 @@ homeHeader icon title subtitle =
          ]
       ]
 
+type alias SearchBarProps msg =
+   { value : String
+   , title : String
+   , onChange : (String -> msg)
+   , onSubmit : msg
+   , submitLabel : String
+   }
+
+searchBar : SearchBarProps msg -> Html msg
+searchBar props = 
+   div [ class "home-quick-search border border-secondary rounded p-3 mb-4" ]
+      [ h2 [ class "h4 text-light mb-3 icon-text-center" ]
+         [ LucideIcon.searchIcon [ Svg.class "me-2" ]
+         , text props.title
+         ]
+      , div [ class "input-group" ]
+         [ input
+            [ class "form-control text-bg-dark border-secondary text-light"
+            , type_ "text"
+            , value props.value
+            , onInput props.onChange
+            ]
+            []
+         , button [ class "btn btn-info", type_ "button", onClick props.onSubmit ]
+            [ text props.submitLabel ]
+         ]
+      ]
 
 assetCard : Asset -> Html Msg
 assetCard asset =

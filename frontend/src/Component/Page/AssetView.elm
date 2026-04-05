@@ -12,6 +12,7 @@ import Model.Asset exposing (Asset)
 import Event exposing (Msg(..))
 import Api.Config exposing (backendUrl)
 import Component.Form as Form
+import Component.Generic exposing (container)
 
 view : AssetModel -> AccountStatus -> Html Msg
 view model accountStatus =
@@ -20,7 +21,7 @@ view model accountStatus =
    else
       case model.asset of
          Just asset ->
-            div [ class "container py-5 text-light" ]
+            container [ class "py-5 text-light" ]
                [ h1 [ class "mb-4" ] [ text asset.fileName ]
                , Form.submitStatus model.status
                , div [ class "row g-4" ]
@@ -81,12 +82,12 @@ view model accountStatus =
 
 loadingView : Html msg
 loadingView =
-   div [ class "container py-5 text-light" ]
+   container [ class "py-5 text-light" ]
       [ h1 [] [ text "Loading asset..." ] ]
 
 errorView : AssetModel -> Html msg
 errorView model =
-   div [ class "container py-5 text-light" ]
+   container [ class "py-5 text-light" ]
       [ h1 [ class "text-danger mb-3" ] [ text "Asset not found" ]
       , p [ class "text-secondary mb-3" ] [ text "The asset you're looking for could not be loaded." ]
       , case model.status of

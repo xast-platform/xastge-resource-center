@@ -9,10 +9,11 @@ import Event exposing (Msg(..))
 import Model.Page.BrowseModel exposing (BrowseModel)
 import Model.Asset exposing (Asset)
 import Component.Form as Form
+import Component.Generic exposing (container)
 
 view : BrowseModel -> Html Msg
 view model =
-   div [ class "container py-4 text-light" ]
+   container [ class "py-4 text-light" ]
       [ h1 [ class "display-5 mb-2 icon-text-center" ]
          [ LucideIcon.scanSearchIcon [ Svg.class "me-2" ]
          , text "Browse assets"

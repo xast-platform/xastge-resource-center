@@ -4,10 +4,11 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import LucideIcons as LucideIcon
 import Svg.Attributes as Svg
+import Component.Generic exposing (container)
 
 view : String -> Html msg
 view path =
-   div [ class "container py-5 text-light" ]
+   container [ class "py-5 text-light" ]
       [ div [ class "not-found-surface border border-secondary rounded p-4 p-lg-5 text-center" ]
          [ h1 [ class "display-1 fw-bold mb-3" ] [ text "404" ]
          , h2 [ class "display-6 mb-3 icon-text-center" ]
