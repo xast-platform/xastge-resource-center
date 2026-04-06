@@ -1,7 +1,7 @@
 module Api.Config exposing (..)
 
 backendUrl : String
-backendUrl = "https://rc.xast.org/api"
+backendUrl = "https://api.rc.xast.org/api"
 
 graphqlUrl : String
-graphqlUrl = "https://rc.xast.org/graphql"
+graphqlUrl = "https://api.rc.xast.org/graphql"

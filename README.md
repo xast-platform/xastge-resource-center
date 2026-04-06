@@ -22,52 +22,42 @@ VPS Nginx (Backend API - port 80/443)
 
 ## Quick Deploy
 
-### 1️⃣ Frontend → Cloudflare Pages (via deploy branch)
+### 1️⃣ Frontend → Cloudflare Pages
 ```bash
-# Build and push to deploy branch
 ./deploy-frontend.sh
 
-# In Cloudflare Dashboard (first time only):
-# Workers & Pages → Create → Connect to Git
+# In Cloudflare Dashboard (first time):
 # - Branch: deploy
-# - Build command: (leave empty)
+# - Build command: (empty)
 # - Output directory: /
-# - Auto-deploys when you run ./deploy-frontend.sh
+# - Custom domain: rc.xast.org
 ```
 
 ### 2️⃣ Backend → VPS
 ```bash
-# On your VPS
+# On VPS
 git clone your-repo
 cd xastge-resource-center
 
 # Update .env
 nano .env
 # Set: NODE_ENV=production
-# Set: ALLOWED_ORIGINS=https://your-project.pages.dev
-# Set: PUBLIC_BACKEND_URL=https://api.yourdomain.com
+# Set: ALLOWED_ORIGINS=https://rc.xast.org
 
 # Deploy
-./deploy.sh all           # Setup backend
-sudo ./deploy.sh nginx    # Configure Nginx (update server_name first!)
-./deploy.sh pm2          # Start with PM2
+./deploy.sh backend
+sudo ./deploy.sh nginx
+./deploy.sh pm2
 
-# Setup SSL (recommended)
-sudo certbot --nginx -d api.yourdomain.com
+# Setup SSL
+sudo certbot --nginx -d api.rc.xast.org
 ```
 
-### 3️⃣ Update Frontend API Config
-Edit `frontend/src/Api/Config.elm`:
-```elm
-backendUrl = "https://api.yourdomain.com/api"
-graphqlUrl = "https://api.yourdomain.com/graphql"
-```
-
-Then deploy: `./deploy-frontend.sh`
+### 3️⃣ Done!
+**Frontend:** https://rc.xast.org  
+**Backend API:** https://api.rc.xast.org
 
 ## 🔧 Development
-
-### Local Development
 ```bash
 # Backend
 cd backend
@@ -83,11 +73,9 @@ npm run hot-serve
 
 ### Frontend Deployment Process
 
-The `deploy-frontend.sh` script:
-1. Builds frontend (`npm run build` in frontend/)
-2. Switches to `deploy` git branch
-3. Copies built files (index.html, elm.js, assets/) to root
-4. Commits and force-pushes to `origin/deploy`
-5. Returns to your original branch
+**Frontend (`deploy-frontend.sh`):**
+1. Builds frontend locally
+2. Pushes to `deploy` branch
+3. Cloudflare Pages auto-deploys
 
-Cloudflare Pages watches the `deploy` branch and auto-deploys changes.
+**Backend:** Nginx proxies API requests to Express on port 3000
