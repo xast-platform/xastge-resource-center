@@ -19,6 +19,7 @@ import Model.AccountStatus exposing (AccountStatus(..))
 import Api exposing (login, register, uploadAsset, getAssets, getFavoriteAssets, getAssetById, toggleFavoriteAsset, reportAsset, updateAsset, deleteAsset, getDownloadAnalytics, getMe, getLatestAssets, getBrowseAssets, updateAccountUsername, updateAccountPassword, deleteAccount)
 import Api.Backend as Backend
 import Api.Ports as Ports
+import Api exposing (confirmEmail)
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -1285,8 +1286,37 @@ update msg model =
             _ ->
                ( model, Cmd.none )
 
-      _ ->
-         ( model, Cmd.none )
+      EmailConfirmationReceived result ->
+         case model.page of
+            PageModel.Confirm confirmModel ->
+               case result of
+                  Ok message ->
+                     ( { model
+                        | page =
+                           PageModel.Confirm
+                              { confirmModel
+                              | status = Just (Register.Success message)
+                              }
+                       }
+                     , Cmd.none
+                     )
+
+                  Err err ->
+                     ( { model
+                        | page =
+                           PageModel.Confirm
+                              { confirmModel
+                              | status = Just (Register.Error (httpErrorToMessage err))
+                              }
+                       }
+                     , Cmd.none
+                     )
+
+            _ ->
+               ( model, Cmd.none )
+
+      SendConfirm token ->
+         ( model, confirmEmail token )
 
 
 loadRouteData : Model -> Cmd Msg

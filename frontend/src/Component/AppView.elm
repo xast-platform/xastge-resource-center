@@ -13,6 +13,7 @@ import Component.Page.DashboardView as DashboardView
 import Component.Page.AssetView as AssetView
 import Component.Page.AboutView as AboutView
 import Component.Page.NotFoundView as NotFoundView
+import Component.Page.ConfirmView as ConfirmView
 import Model.AccountStatus exposing (AccountStatus(..))
 
 view : Model -> List (Html Msg)
@@ -56,4 +57,7 @@ view model =
 
       NotFound path ->
          NotFoundView.view path
+
+      Confirm confirmModel ->
+         ConfirmView.view confirmModel
    ]

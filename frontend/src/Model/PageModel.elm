@@ -14,6 +14,8 @@ import Model.Page.AssetModel as AssetModel
 import Model.Page.BrowseModel exposing (BrowseModel)
 import Model.Page.BrowseModel as BrowseModel
 import Model.Page.HomeModel as HomeModel
+import Model.Page.ConfirmModel exposing (ConfirmModel)
+import Model.Page.ConfirmModel as ConfirmModel
 
 type PageModel 
    = Home HomeModel 
@@ -24,6 +26,7 @@ type PageModel
    | Dashboard DashboardModel
    | Asset AssetModel
    | NotFound String
+   | Confirm ConfirmModel
 
 fromRoute : Route -> PageModel
 fromRoute route = case route of
@@ -43,3 +46,6 @@ fromRoute route = case route of
       Asset (AssetModel.init assetId)
    Route.NotFound page -> 
       NotFound page
+   Route.Confirm token ->
+      Confirm (ConfirmModel.init token)
+   

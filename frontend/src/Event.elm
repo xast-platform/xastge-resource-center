@@ -84,8 +84,9 @@ type Msg
    | UpdateAssetReportReason String
    | SubmitAssetReport String
    | AssetReportResponseReceived (Result Http.Error String)
+   -- Email Confirmation
+   | SendConfirm String
+   | EmailConfirmationReceived (Result Http.Error String)
    -- Other
-   | GotResources (Result Http.Error (List String))
    | UrlChange Url
    | LinkClicked UrlRequest
-   | DummyEvent

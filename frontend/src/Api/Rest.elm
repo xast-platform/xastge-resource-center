@@ -58,6 +58,14 @@ loginEncoder req =
       , ( "saveSession", Encode.bool req.saveSession )
       ]
 
+-- Email Confirmation
+confirmEmail : String -> Cmd Msg
+confirmEmail token =
+   Http.get
+      { url = backendUrl ++ "/auth/verify-email?token=" ++ Url.percentEncode token
+      , expect = Http.expectStringResponse EmailConfirmationReceived backendMessageResolver
+      }
+
 -- Dashboard asset upload
 type alias UploadAssetRequest =
    { assetType : String
@@ -267,18 +275,6 @@ meSuccessDecoder =
             , Decode.succeed "user"
             ]
          )
-
--- ...
-getResources : Cmd Msg
-getResources = 
-   Http.get
-      { url = "http://localhost:3000/api/resources"
-      , expect = Http.expectJson GotResources resourcesDecoder
-      }
-
-resourcesDecoder : Decode.Decoder (List String)
-resourcesDecoder =
-   Decode.list Decode.string
 
 uploadAssetResponseResolver : Http.Response String -> Result Http.Error String
 uploadAssetResponseResolver response =

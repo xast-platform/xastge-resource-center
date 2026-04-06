@@ -47,6 +47,11 @@ type alias UpdatePasswordRequest =
 type alias DeleteAccountRequest =
    Rest.DeleteAccountRequest
 
+confirmEmail : String -> Cmd Msg
+confirmEmail token =
+   Rest.confirmEmail token 
+
+
 register : Backend -> RegisterRequest -> Cmd Msg
 register backend req =
    case backend of

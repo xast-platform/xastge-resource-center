@@ -75,6 +75,9 @@ init flags url key =
             Route.Asset assetId ->
                LoadAssetPage assetId |> Task.succeed |> Task.perform identity
 
+            Route.Confirm token ->
+               SendConfirm token |> Task.succeed |> Task.perform identity
+
             _ ->
                Cmd.none
 

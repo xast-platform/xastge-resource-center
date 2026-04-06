@@ -21,8 +21,8 @@ function createVerificationToken() {
 }
 
 function verificationUrl(token) {
-   const baseUrl = process.env.PUBLIC_BACKEND_URL || "http://localhost:3000";
-   return `${baseUrl}/api/auth/verify-email?token=${token}`;
+   const baseUrl = process.env.PUBLIC_FRONTEND_URL || "http://localhost:5000";
+   return `${baseUrl}/confirm/${token}`;
 }
 
 async function notifyVerificationLink(email, token) {
