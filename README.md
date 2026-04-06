@@ -22,18 +22,17 @@ VPS Nginx (Backend API - port 80/443)
 
 ## Quick Deploy
 
-### 1️⃣ Frontend → Cloudflare Pages
+### 1️⃣ Frontend → Cloudflare Pages (via deploy branch)
 ```bash
-# Push to Git
-git add .
-git commit -m "Deploy to Cloudflare Pages"
-git push
+# Build and push to deploy branch
+./deploy-frontend.sh
 
-# In Cloudflare Dashboard:
-# - Connect your Git repo
-# - Build command: cd frontend && npm install && npm run build
-# - Output directory: frontend/dist
-# - Auto-deploys on every push!
+# In Cloudflare Dashboard (first time only):
+# Workers & Pages → Create → Connect to Git
+# - Branch: deploy
+# - Build command: (leave empty)
+# - Output directory: /
+# - Auto-deploys when you run ./deploy-frontend.sh
 ```
 
 ### 2️⃣ Backend → VPS
@@ -64,4 +63,31 @@ backendUrl = "https://api.yourdomain.com/api"
 graphqlUrl = "https://api.yourdomain.com/graphql"
 ```
 
-Then push to trigger Cloudflare Pages rebuild.
+Then deploy: `./deploy-frontend.sh`
+
+## 🔧 Development
+
+### Local Development
+```bash
+# Backend
+cd backend
+node src/index.js
+# Runs on http://localhost:3000
+
+# Frontend (in another terminal)
+cd frontend
+# Uncomment localhost URLs in src/Api/Config.elm first
+npm run hot-serve
+# Runs on http://localhost:5000
+```
+
+### Frontend Deployment Process
+
+The `deploy-frontend.sh` script:
+1. Builds frontend (`npm run build` in frontend/)
+2. Switches to `deploy` git branch
+3. Copies built files (index.html, elm.js, assets/) to root
+4. Commits and force-pushes to `origin/deploy`
+5. Returns to your original branch
+
+Cloudflare Pages watches the `deploy` branch and auto-deploys changes.
