@@ -1,5 +1,7 @@
 const jwt = require("jsonwebtoken");
 
+const JWT_SECRET = process.env.JWT_SECRET || "SECRET";
+
 function auth(req, res, next) {
    const authorization = req.headers.authorization || "";
    const [scheme, rawToken] = authorization.split(" ");
@@ -14,7 +16,7 @@ function auth(req, res, next) {
    }
 
    try {
-      const payload = jwt.verify(token, "SECRET");
+      const payload = jwt.verify(token, JWT_SECRET);
       req.user = payload;
       next();
    } catch (err) {

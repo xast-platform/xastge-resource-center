@@ -1,5 +1,7 @@
 const jwt = require("jsonwebtoken");
 
+const JWT_SECRET = process.env.JWT_SECRET || "SECRET";
+
 function optionalAuth(req, _res, next) {
    const authorization = req.headers.authorization || "";
 
@@ -17,7 +19,7 @@ function optionalAuth(req, _res, next) {
    }
 
    try {
-      const payload = jwt.verify(token, "SECRET");
+      const payload = jwt.verify(token, JWT_SECRET);
       req.user = payload;
    } catch (_err) {
    }

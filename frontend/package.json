@@ -7,7 +7,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "elm-watch hot",
     "serve": "serve -s . -l 5000",
-    "hot-serve": "concurrently \"npm run dev\" \"npm run serve\""
+    "hot-serve": "concurrently \"npm run dev\" \"npm run serve\"",
+    "build": "elm make src/Main.elm --optimize --output=dist/elm.js",
+    "build:prod": "npm run build && npm run copy-assets",
+    "copy-assets": "mkdir -p dist && cp index.html dist/ && cp -r assets dist/"
   },
   "keywords": [],
   "author": "",

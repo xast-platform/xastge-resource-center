@@ -27,13 +27,26 @@ const assetRoutes = require("./route/assetRoutes");
 const schema = require("./graphql/schema");
 const resolvers = require("./graphql/resolvers");
 
-const mongoUrl = "mongodb://localhost:27017/resource-center";
+// Configuration from environment
+const PORT = process.env.PORT || 3000;
+const MONGO_URL = process.env.MONGO_URL || "mongodb://localhost:27017/resource-center";
+const JWT_SECRET = process.env.JWT_SECRET || "SECRET";
+const COOKIE_SECRET = process.env.COOKIE_SECRET || "cookieSecret";
+const NODE_ENV = process.env.NODE_ENV || "development";
+
+// CORS configuration - restrictive in production
+const corsOptions = NODE_ENV === "production"
+   ? {
+      origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : ["http://localhost"],
+      credentials: true,
+   }
+   : { origin: "*" }; // Allow all in development
 
 const app = express();
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
-mongoose.connect(mongoUrl)
+mongoose.connect(MONGO_URL)
    .then(() => console.log("MongoDB connected"))
    .catch(err => console.error("MongoDB connection error:", err));
 
@@ -54,7 +67,7 @@ function readGraphqlUser(req) {
    }
 
    try {
-      return jwt.verify(token, "SECRET");
+      return jwt.verify(token, JWT_SECRET);
    } catch (_err) {
       return null;
    }
@@ -63,7 +76,7 @@ function readGraphqlUser(req) {
 app.use("/graphql", graphqlHTTP((req) => ({
    schema,
    rootValue: resolvers,
-   graphiql: true,
+   graphiql: NODE_ENV === "development",
    context: {
       user: readGraphqlUser(req),
    },
@@ -82,10 +95,13 @@ app.use((err, _req, res, _next) => {
 
 // ------- Cookies --------
 app.use(session({
-   secret: "cookieSecret",
+   secret: COOKIE_SECRET,
    resave: false,
    saveUninitialized: false,
-   cookie: {},
+   cookie: { secure: NODE_ENV === "production" },
 }));
 
-app.listen(3000, () => console.log("Server running on http://localhost:3000"));
+app.listen(PORT, () => {
+   console.log(`Server running on http://localhost:${PORT}`);
+   console.log(`Environment: ${NODE_ENV}`);
+});

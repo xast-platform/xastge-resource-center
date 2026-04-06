@@ -6,6 +6,8 @@ const assetRepository = require("../repository/assetRepository");
 const storage = require("../storage");
 const emailService = require("./emailService");
 
+const JWT_SECRET = process.env.JWT_SECRET || "SECRET";
+
 const VERIFICATION_TTL_MS = 1000 * 60 * 60 * 24;
 
 function toPublicUser(user) {
@@ -46,7 +48,7 @@ async function notifyVerificationLink(email, token) {
 function buildAuthResponse(user, saveSession = false) {
    const token = jwt.sign(
       { id: user._id },
-      "SECRET",
+      JWT_SECRET,
       { expiresIn: saveSession ? "30d" : "30m" },
    );
 

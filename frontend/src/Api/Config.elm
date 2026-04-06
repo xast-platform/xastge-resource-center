@@ -1,7 +1,14 @@
 module Api.Config exposing (..)
 
+-- Production: use relative URLs (Nginx proxies to backend)
+-- Development: uncomment localhost URLs below
+
 backendUrl : String
-backendUrl = "http://localhost:3000/api"
+backendUrl = "/api"
 
 graphqlUrl : String
-graphqlUrl = "http://localhost:3000/graphql"
+graphqlUrl = "/graphql"
+
+-- Development URLs (comment out above and uncomment below for local dev)
+-- backendUrl = "http://localhost:3000/api"
+-- graphqlUrl = "http://localhost:3000/graphql"
