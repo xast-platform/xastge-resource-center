@@ -44,12 +44,12 @@ nano .env
 # Set: NODE_ENV=production
 # Set: ALLOWED_ORIGINS=https://rc.xast.org
 
-# Deploy
+# Deploy backend
 ./deploy.sh backend
 sudo ./deploy.sh nginx
 ./deploy.sh pm2
 
-# Setup SSL
+# Setup SSL (Certbot will modify your Nginx config, but nginx.conf already handles both HTTP and HTTPS)
 sudo certbot --nginx -d api.rc.xast.org
 ```
 
@@ -79,3 +79,11 @@ npm run hot-serve
 3. Cloudflare Pages auto-deploys
 
 **Backend:** Nginx proxies API requests to Express on port 3000
+
+### Nginx site management
+
+`deploy.sh nginx` manages a single Nginx site named `api` using `nginx.conf`.
+The config handles both HTTP and HTTPS:  
+- Before SSL certs exist: HTTP traffic works normally  
+- After Certbot creates certs, the config automatically enables SSL and redirects HTTP to HTTPS  
+This single-file approach avoids duplicate server blocks and config conflicts.

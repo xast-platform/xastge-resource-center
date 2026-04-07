@@ -11,8 +11,11 @@ NC='\033[0m' # No Color
 
 # Configuration
 BACKEND_DIR="backend"
-NGINX_CONF="/etc/nginx/sites-available/xastge-resource-center"
-NGINX_ENABLED="/etc/nginx/sites-enabled/xastge-resource-center"
+NGINX_SITE_NAME="api"
+NGINX_CONF="/etc/nginx/sites-available/${NGINX_SITE_NAME}"
+NGINX_ENABLED="/etc/nginx/sites-enabled/${NGINX_SITE_NAME}"
+LEGACY_NGINX_CONF="/etc/nginx/sites-available/xastge-resource-center"
+LEGACY_NGINX_ENABLED="/etc/nginx/sites-enabled/xastge-resource-center"
 
 # Check if running as root for nginx operations
 check_permissions() {
@@ -28,10 +31,17 @@ setup_nginx() {
     echo -e "${YELLOW}⚙️  Setting up Nginx configuration...${NC}"
     
     # Copy nginx config
-    sudo cp nginx.conf $NGINX_CONF
+    sudo cp nginx.conf "$NGINX_CONF"
     
     # Enable site
-    sudo ln -sf $NGINX_CONF $NGINX_ENABLED
+    sudo ln -sf "$NGINX_CONF" "$NGINX_ENABLED"
+
+    # Remove legacy duplicate site to avoid conflicting server blocks for the same domain
+    sudo rm -f "$LEGACY_NGINX_ENABLED"
+
+    if [ -f "$LEGACY_NGINX_CONF" ]; then
+        echo -e "${YELLOW}ℹ️  Legacy site file kept at ${LEGACY_NGINX_CONF}${NC}"
+    fi
     
     # Test nginx configuration
     sudo nginx -t
@@ -88,6 +98,7 @@ main() {
             echo -e "${YELLOW}Next steps:${NC}"
             echo "1. Setup Nginx: sudo ./deploy.sh nginx"
             echo "2. Start backend: ./deploy.sh pm2"
+            echo "3. Setup SSL: sudo certbot --nginx -d api.rc.xast.org"
             echo ""
             echo -e "${YELLOW}Frontend (Cloudflare Pages):${NC}"
             echo "1. Push to Git"
