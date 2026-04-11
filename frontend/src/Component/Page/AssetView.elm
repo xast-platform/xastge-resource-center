@@ -42,6 +42,7 @@ view model accountStatus =
                         [ a
                            [ class "btn btn-info"
                            , href (backendUrl ++ "/assets/" ++ asset.id ++ "/download")
+                           , download asset.fileName
                            ]
                            [ LucideIcon.downloadIcon [ Svg.class "me-1" ], text "Download" ]
                         , case accountStatus of
