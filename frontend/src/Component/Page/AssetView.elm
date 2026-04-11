@@ -28,7 +28,7 @@ view model accountStatus =
                   [ div [ class "col-lg-5" ]
                      [ img
                         [ class "img-fluid image-ratio-fixed rounded border border-secondary"
-                        , src (if asset.thumbnailUrl == "" then "https://dummyimage.com/640x420/4c4c4c/ffffff.png&text=No+Thumbnail" else asset.thumbnailUrl)
+                        , src (if asset.thumbnailUrl == "" then "https://dummyimage.com/640x640/4c4c4c/ffffff.png&text=  No+Thumbnail" else asset.thumbnailUrl)
                         ]
                         []
                      ]

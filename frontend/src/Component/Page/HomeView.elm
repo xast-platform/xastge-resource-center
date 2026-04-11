@@ -97,7 +97,7 @@ assetCard asset =
          [ class "card-img-top image-ratio-fixed card-thumbnail-fixed border-bottom border-secondary"
          , src
             (if asset.thumbnailUrl == "" then
-                "https://dummyimage.com/240x240/595959/ffffff.png&text=No+Thumbnail"
+                "https://dummyimage.com/240x240/595959/ffffff.png&text= No+Thumbnail"
              else
                 asset.thumbnailUrl
             )

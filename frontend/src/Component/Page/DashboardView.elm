@@ -400,7 +400,7 @@ card props =
    div [ class "card text-bg-dark border border-secondary", attribute "style" "width: 240px;" ]
       [ img
          [ class "card-img-top image-ratio-fixed border-bottom border-secondary"
-         , src (if props.image == "" then "https://dummyimage.com/240x150/595959/ffffff.png&text=No+Thumbnail" else props.image)
+         , src (if props.image == "" then "https://dummyimage.com/240x240/595959/ffffff.png&text=  No+Thumbnail" else props.image)
          ]
          []
       , div [ class "card-body" ]
