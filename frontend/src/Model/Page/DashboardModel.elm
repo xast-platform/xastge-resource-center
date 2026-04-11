@@ -21,7 +21,7 @@ type alias DashboardModel =
    , loadingAnalytics : Bool
    , listStatus : Maybe SubmitStatus
    , editingAsset : Maybe Asset
-   , editAssetType : String
+   , editThumbnailFile : Maybe File
    , editDescription : String
    , editTags : String
    , editButtonDisabled : Bool
@@ -385,7 +385,7 @@ empty =
    , loadingAnalytics = False
    , listStatus = Nothing
    , editingAsset = Nothing
-   , editAssetType = "Scene"
+   , editThumbnailFile = Nothing
    , editDescription = ""
    , editTags = ""
    , editButtonDisabled = False

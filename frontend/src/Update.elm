@@ -765,7 +765,7 @@ update msg model =
                      PageModel.Dashboard
                         { dbm
                         | editingAsset = Just asset
-                        , editAssetType = asset.assetType
+                        , editThumbnailFile = Nothing
                         , editDescription = asset.description
                         , editTags = Dashboard.tagsToString asset.tags
                         , editStatus = Nothing
@@ -794,10 +794,10 @@ update msg model =
             _ ->
                ( model, Cmd.none )
 
-      UpdateDashboardEditAssetType value ->
+      UpdateDashboardEditThumbnailFile value ->
          case model.page of
             PageModel.Dashboard dbm ->
-               ( { model | page = PageModel.Dashboard { dbm | editAssetType = value, editStatus = Nothing } }, Cmd.none )
+               ( { model | page = PageModel.Dashboard { dbm | editThumbnailFile = Just value, editStatus = Nothing } }, Cmd.none )
 
             _ ->
                ( model, Cmd.none )
@@ -827,7 +827,7 @@ update msg model =
                      , updateAsset model.backend
                         { id = asset.id
                         , token = userData.token
-                        , assetType = dbm.editAssetType
+                        , thumbnail = dbm.editThumbnailFile
                         , description = String.trim dbm.editDescription
                         , tags = dbm.editTags
                         }

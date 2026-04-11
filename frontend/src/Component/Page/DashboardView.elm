@@ -332,11 +332,10 @@ editForm : DashboardModel -> Html Msg
 editForm model =
    div [ class "w-100" ]
       [ Form.submitStatus model.editStatus
-      , Form.formSelect
-         { label = "Asset Type"
-         , value = model.editAssetType
-         , options = [ "Scene", "Model", "Script", "Texture", "Audio" ]
-         , onInput = UpdateDashboardEditAssetType
+      , Form.fileInput
+         { label = "Thumbnail file"
+         , onSelect = UpdateDashboardEditThumbnailFile
+         , fileName = model.editThumbnailFile |> Maybe.map File.name
          , error = Nothing
          }
       , Form.formTextarea

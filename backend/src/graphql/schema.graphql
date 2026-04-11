@@ -92,7 +92,7 @@ type Mutation {
    updateUsername(username: String!, password: String!): UserPayload!
    updatePassword(currentPassword: String!, newPassword: String!): MessagePayload!
    deleteAccount(password: String!): MessagePayload!
-   updateAsset(id: ID!, assetType: String, description: String, tags: String): MessagePayload!
+   updateAsset(id: ID!, description: String, tags: String, thumbnailFile: Upload): MessagePayload!
    deleteAsset(id: ID!): MessagePayload!
    favoriteAsset(id: ID!): MessagePayload!
    unfavoriteAsset(id: ID!): MessagePayload!

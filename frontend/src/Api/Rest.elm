@@ -95,7 +95,7 @@ uploadAsset req =
    in
    Http.request
       { method = "POST"
-      , headers = [ Http.header "Authorization" ("Bearer " ++ req.token) ]
+      , headers = authHeaders (Just req.token)
       , url = backendUrl ++ "/assets/upload"
       , body = Http.multipartBody parts
       , expect = Http.expectStringResponse DashboardUploadResponseReceived uploadAssetResponseResolver
@@ -156,7 +156,7 @@ getMe : String -> Cmd Msg
 getMe token =
    Http.request
       { method = "GET"
-      , headers = [ Http.header "Authorization" ("Bearer " ++ token) ]
+      , headers = authHeaders (Just token)
       , url = backendUrl ++ "/auth/me"
       , body = Http.emptyBody
       , expect = Http.expectStringResponse MeResponseReceived meResponseResolver
@@ -174,7 +174,7 @@ updateAccountUsername : UpdateUsernameRequest -> Cmd Msg
 updateAccountUsername req =
    Http.request
       { method = "PATCH"
-      , headers = [ Http.header "Authorization" ("Bearer " ++ req.token) ]
+      , headers = authHeaders (Just req.token)
       , url = backendUrl ++ "/auth/username"
       , body =
          Http.jsonBody
@@ -198,7 +198,7 @@ updateAccountPassword : UpdatePasswordRequest -> Cmd Msg
 updateAccountPassword req =
    Http.request
       { method = "PATCH"
-      , headers = [ Http.header "Authorization" ("Bearer " ++ req.token) ]
+      , headers = authHeaders (Just req.token)
       , url = backendUrl ++ "/auth/password"
       , body =
          Http.jsonBody
@@ -221,7 +221,7 @@ deleteAccount : DeleteAccountRequest -> Cmd Msg
 deleteAccount req =
    Http.request
       { method = "DELETE"
-      , headers = [ Http.header "Authorization" ("Bearer " ++ req.token) ]
+      , headers = authHeaders (Just req.token)
       , url = backendUrl ++ "/auth/account"
       , body = Http.jsonBody (Encode.object [ ( "password", Encode.string req.password ) ])
       , expect = Http.expectStringResponse DashboardAccountDeleteResponseReceived backendMessageResolver
@@ -458,25 +458,31 @@ reportAsset req =
 type alias UpdateAssetRequest =
    { id : String
    , token : String
-   , assetType : String
+   , thumbnail : Maybe File
    , description : String
    , tags : String
    }
 
 updateAsset : UpdateAssetRequest -> Cmd Msg
 updateAsset req =
+   let
+      parts =
+         [ Http.stringPart "description" req.description
+         , Http.stringPart "tags" req.tags
+         ]
+            ++ (case req.thumbnail of
+                  Just thumbnailFile ->
+                     [ Http.filePart "thumbnailFile" thumbnailFile ]
+
+                  Nothing ->
+                     []
+               )
+   in
    Http.request
       { method = "PUT"
       , headers = authHeaders (Just req.token)
       , url = backendUrl ++ "/assets/" ++ req.id
-      , body =
-         Http.jsonBody
-            (Encode.object
-               [ ( "assetType", Encode.string req.assetType )
-               , ( "description", Encode.string req.description )
-               , ( "tags", Encode.string req.tags )
-               ]
-            )
+      , body = Http.multipartBody parts
       , expect = Http.expectStringResponse DashboardEditResponseReceived backendMessageResolver
       , timeout = Nothing
       , tracker = Nothing

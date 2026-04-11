@@ -359,15 +359,13 @@ async function updateAsset(req) {
    const currentUser = await requireUser(req.user?.id);
    const asset = await getAssetOrThrow(req.params.id);
    assertCanManageAsset(currentUser, asset);
+   const body = req.body || {};
+   const thumbnailFile = req.files?.thumbnailFile?.[0];
 
    const patch = {};
 
-   if (typeof req.body.assetType === "string") {
-      patch.assetType = normalizeAssetType(req.body.assetType);
-   }
-
-   if (typeof req.body.description === "string") {
-      patch.description = normalizeDescription(req.body.description);
+   if (typeof body.description === "string") {
+      patch.description = normalizeDescription(body.description);
       if (!patch.description) {
          const error = new Error("Description is required");
          error.status = 400;
@@ -375,8 +373,34 @@ async function updateAsset(req) {
       }
    }
 
-   if (req.body.tags !== undefined) {
-      patch.tags = parseTags(req.body.tags);
+   if (body.tags !== undefined) {
+      patch.tags = parseTags(body.tags);
+   }
+
+   if (thumbnailFile) {
+      if (thumbnailFile.size <= 0) {
+         const error = new Error("Thumbnail file is empty");
+         error.status = 400;
+         throw error;
+      }
+
+      if (!isImage(thumbnailFile)) {
+         const error = new Error("Thumbnail must be an image");
+         error.status = 400;
+         throw error;
+      }
+
+      const uploadedThumbnail = await storage.upload(thumbnailFile, currentUser.id);
+
+      patch.thumbnailName = thumbnailFile.originalname;
+      patch.thumbnailKey = uploadedThumbnail.id;
+      patch.thumbnailUrl = uploadedThumbnail.url;
+      patch.thumbnailType = uploadedThumbnail.type;
+      patch.thumbnailSize = uploadedThumbnail.size;
+
+      if (asset.thumbnailKey) {
+         await storage.delete(asset.thumbnailKey);
+      }
    }
 
    const updated = await assetRepository.updateAsset(asset._id, patch);
@@ -473,7 +497,11 @@ async function downloadAsset(assetId) {
    const asset = await getAssetOrThrow(assetId);
    await assetRepository.incrementDownloadCount(asset._id);
 
-   return { url: asset.fileUrl };
+   return {
+      url: asset.fileUrl,
+      fileName: asset.fileName,
+      fileType: asset.fileType,
+   };
 }
 
 async function getDownloadAnalytics(userId) {

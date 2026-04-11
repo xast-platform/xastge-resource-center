@@ -43,12 +43,13 @@ function requireAuthUser(context) {
    return context.user;
 }
 
-function makeAssetReq({ context, params = {}, body = {}, query = {} }) {
+function makeAssetReq({ context, params = {}, body = {}, query = {}, files = undefined }) {
    return {
       user: context.user || undefined,
       params,
       body,
       query,
+      files,
    };
 }
 
@@ -148,13 +149,16 @@ module.exports = {
       return assetService.downloadAsset(id);
    },
 
-   updateAsset: async ({ id, assetType, description, tags }, context) => {
+   updateAsset: async ({ id, description, tags, thumbnailFile = null }, context) => {
       requireAuthUser(context);
+
+      const thumb = thumbnailFile ? await toServiceFile(thumbnailFile) : null;
 
       const req = makeAssetReq({
          context,
          params: { id },
-         body: { assetType, description, tags },
+         body: { description, tags },
+         files: thumb ? { thumbnailFile: [ thumb ] } : undefined,
       });
 
       const result = await assetService.updateAsset(req);

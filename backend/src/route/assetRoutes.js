@@ -27,7 +27,14 @@ router.get("/", optionalAuthMiddleware, assetController.listAssets);
 router.get("/analytics/downloads", authMiddleware, assetController.getDownloadAnalytics);
 router.get("/:id/download", assetController.downloadAsset);
 router.get("/:id", optionalAuthMiddleware, assetController.getAssetById);
-router.put("/:id", authMiddleware, assetController.updateAsset);
+router.put(
+   "/:id",
+   authMiddleware,
+   upload.fields([
+      { name: "thumbnailFile", maxCount: 1 },
+   ]),
+   assetController.updateAsset,
+);
 router.delete("/:id", authMiddleware, assetController.deleteAsset);
 router.post("/:id/favorite", authMiddleware, assetController.favoriteAsset);
 router.delete("/:id/favorite", authMiddleware, assetController.unfavoriteAsset);

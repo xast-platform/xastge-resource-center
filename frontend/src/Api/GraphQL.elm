@@ -265,18 +265,60 @@ getAssetById req =
 
 updateAsset : Rest.UpdateAssetRequest -> Cmd Msg
 updateAsset req =
-   let
-      query =
-         "mutation { updateAsset"
-            ++ joinArgs
-               [ strArg "id" req.id
-               , strArg "assetType" req.assetType
-               , strArg "description" req.description
-               , strArg "tags" req.tags
+   case req.thumbnail of
+      Just thumbnail ->
+         let
+            operationsJson =
+               Encode.object
+                  [ ( "query"
+                    , Encode.string
+                         "mutation($id: ID!, $description: String!, $tags: String, $thumbnailFile: Upload) { updateAsset(id: $id, description: $description, tags: $tags, thumbnailFile: $thumbnailFile) { message } }"
+                    )
+                  , ( "variables"
+                    , Encode.object
+                         [ ( "id", Encode.string req.id )
+                         , ( "description", Encode.string req.description )
+                         , ( "tags", Encode.string req.tags )
+                         , ( "thumbnailFile", Encode.null )
+                         ]
+                    )
+                  ]
+                  |> Encode.encode 0
+
+            mapJson =
+               Encode.object
+                  [ ( "0", Encode.list Encode.string [ "variables.thumbnailFile" ] )
+                  ]
+                  |> Encode.encode 0
+
+            parts =
+               [ Http.stringPart "operations" operationsJson
+               , Http.stringPart "map" mapJson
+               , Http.filePart "0" thumbnail
                ]
-            ++ " { message } }"
-   in
-   graphqlRequest (Just req.token) query (Decode.at [ "updateAsset", "message" ] Decode.string) DashboardEditResponseReceived
+         in
+         Http.request
+            { method = "POST"
+            , headers = [ Http.header "Authorization" ("Bearer " ++ req.token) ]
+            , url = graphqlUrl
+            , body = Http.multipartBody parts
+            , expect = Http.expectStringResponse DashboardEditResponseReceived (graphqlResolver (Decode.at [ "updateAsset", "message" ] Decode.string))
+            , timeout = Nothing
+            , tracker = Nothing
+            }
+
+      Nothing ->
+         let
+            query =
+               "mutation { updateAsset"
+                  ++ joinArgs
+                     [ strArg "id" req.id
+                     , strArg "description" req.description
+                     , strArg "tags" req.tags
+                     ]
+                  ++ " { message } }"
+         in
+         graphqlRequest (Just req.token) query (Decode.at [ "updateAsset", "message" ] Decode.string) DashboardEditResponseReceived
 
 deleteAsset : Rest.DeleteAssetRequest -> Cmd Msg
 deleteAsset req =

@@ -56,7 +56,7 @@ type Msg
    | DashboardAnalyticsReceived (Result Http.Error (List AssetAnalytics))
    | OpenDashboardEditAsset Asset
    | CloseDashboardEditAsset
-   | UpdateDashboardEditAssetType String
+   | UpdateDashboardEditThumbnailFile File
    | UpdateDashboardEditDescription String
    | UpdateDashboardEditTags String
    | SubmitDashboardEditAsset

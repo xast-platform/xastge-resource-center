@@ -1,4 +1,5 @@
 const assetService = require("../service/assetService");
+const { Readable } = require("stream");
 
 async function uploadAsset(req, res, next) {
    try {
@@ -76,7 +77,19 @@ async function reportAsset(req, res, next) {
 async function downloadAsset(req, res, next) {
    try {
       const result = await assetService.downloadAsset(req.params.id);
-      res.redirect(result.url);
+
+      const upstream = await fetch(result.url);
+
+      if (!upstream.ok || !upstream.body) {
+         const error = new Error("Failed to download file");
+         error.status = 502;
+         throw error;
+      }
+
+      res.setHeader("Content-Type", result.fileType || upstream.headers.get("content-type") || "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+
+      Readable.fromWeb(upstream.body).pipe(res);
    } catch (err) {
       next(err);
    }
